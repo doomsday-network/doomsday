@@ -14,7 +14,7 @@ from node.p2p import P2PManager
 from core.block import Block
 from core.transaction import COIN, Transaction, TxInput, TxOutput
 
-app = FastAPI(title="Doomsday Network Node", version="1.0.0", docs_url="/api/docs", redoc_url=None)
+app = FastAPI(title="Doomsday Network Node", version="1.0.1", docs_url="/api/docs", redoc_url=None)
 
 @app.middleware("http")
 async def add_security_headers(request, call_next):
@@ -878,29 +878,33 @@ if os.path.exists(web_dir):
         script_path = os.path.join(web_dir, "install.sh")
         return FileResponse(script_path, media_type="text/x-shellscript")
 
+    @app.get("/download/desktop")
+    @app.get("/download/latest")
+    @app.get("/download/Doomsday-Windows-x64.zip")
+    @app.get("/download/Doomsday-v1.0.1-windows-x64.zip")
     @app.get("/download/Doomsday-v1.0.0-windows-x64.zip")
     def download_windows_miner():
         candidates = [
             os.path.join(web_dir, "Doomsday-v1.0.0-Windows-x64.zip"),
-            os.path.join(os.path.dirname(os.path.dirname(__file__)), "desktop", "dist", "Doomsday-v1.0.0-Windows-x64.zip")
+            os.path.join(os.path.dirname(os.path.dirname(__file__)), "desktop", "dist", "Doomsday-Windows-x64.zip")
         ]
         for p in candidates:
             if os.path.exists(p):
-                return FileResponse(p, filename="Doomsday-v1.0.0-Windows-x64.zip", media_type="application/zip")
+                return FileResponse(p, filename="Doomsday-Windows-x64.zip", media_type="application/zip")
         return RedirectResponse(
-            url="https://github.com/doomsday-network/doomsday/releases/download/v1.0.0/Doomsday-v1.0.0-Windows-x64.zip",
+            url="https://github.com/doomsday-network/doomsday/releases/download/v1.0.1/Doomsday-Windows-x64.zip",
             status_code=302
         )
 
     @app.get("/api/version")
     def get_version_info():
         return {
-            "version": "1.0.0",
-            "tag_name": "v1.0.0",
-            "name": "Doomsday Network v1.0.0 - Sovereign Mainnet Genesis",
-            "download_url": "https://github.com/doomsday-network/doomsday/releases/download/v1.0.0/Doomsday-v1.0.0-Windows-x64.zip",
+            "version": "1.0.1",
+            "tag_name": "v1.0.1",
+            "name": "Doomsday Network v1.0.1 - Security & System Tray Hardening Release",
+            "download_url": "https://github.com/doomsday-network/doomsday/releases/download/v1.0.1/Doomsday-Windows-x64.zip",
             "release_url": "https://github.com/doomsday-network/doomsday/releases/latest",
-            "release_notes": "Sovereign Mainnet Genesis with zero-lag Proof-of-Idle-Work Sentinel, Multi-GPU matrix, CEX RPC daemon, and interactive Whitepaper."
+            "release_notes": "Security & Ergonomics Hardening:\n- Automatic keystore persistence with mandatory private key backup confirmation\n- Windows system tray minimization with live telemetry tooltip\n- Close-to-tray idle vigil mode\n- Silent Windows startup support (--hidden)\n- Child process error trapping preventing unhandled exceptions\n- DOM XSS sanitization and P2P wire payload bounds."
         }
 
 

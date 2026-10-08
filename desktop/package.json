@@ -1,6 +1,6 @@
 {
   "name": "doomsday-desktop",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Doomsday Network - Proof-of-Idle-Work Desktop Client",
   "main": "main.js",
   "scripts": {
