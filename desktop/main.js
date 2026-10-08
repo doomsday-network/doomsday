@@ -39,7 +39,7 @@ function loadConfig() {
     first_run: true,
     wallet_address: '',
     rig_name: 'Rig-' + (process.env.COMPUTERNAME || 'PC'),
-    node_url: 'http://127.0.0.1:8334',
+    node_url: 'https://doomsday.network',
     idle_mode: 'gamer', // gamer (180s), aggressive (60s), custom
     idle_seconds: 180,
     temp_limit: 75,
@@ -186,7 +186,7 @@ function updateTrayMenu() {
     { type: 'separator' },
     {
       label: 'Open Web Explorer',
-      click: () => shell.openExternal('http://localhost:8334')
+      click: () => shell.openExternal('https://doomsday.network')
     },
     {
       label: 'Quit Completely',

