@@ -208,6 +208,12 @@ class CUDASolver:
 
         # 4. Load NVRTC
         if nvrtc_path:
+            dll_folder = os.path.dirname(nvrtc_path)
+            try:
+                ctypes.windll.kernel32.SetDllDirectoryW(dll_folder)
+            except Exception:
+                pass
+            os.environ["PATH"] = dll_folder + os.pathsep + os.environ.get("PATH", "")
             self.nvrtc = ctypes.CDLL(nvrtc_path)
         else:
             try:

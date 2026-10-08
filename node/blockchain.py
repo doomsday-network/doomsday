@@ -8,7 +8,7 @@ from typing import Dict, List, Optional, Tuple, Any
 from core.crypto import bits_to_target, target_to_bits, INITIAL_BITS
 from core.transaction import Transaction, TxInput, TxOutput, create_coinbase_tx, COIN
 from core.block import Block, BlockHeader, calculate_merkle_root, create_genesis_block
-from core.consensus import validate_block, calculate_next_bits, get_block_reward
+from core.consensus import validate_block, calculate_next_bits, get_block_reward, validate_transaction
 
 
 class Blockchain:
@@ -18,6 +18,7 @@ class Blockchain:
         self.blocks: List[Block] = []
         self.utxo_set: Dict[str, Tuple[str, int]] = {}  # f"{txid}:{vout}" -> (recipient, amount)
         self.mempool: List[Transaction] = []
+        self.active_templates: Dict[Tuple[str, int, int], Dict[str, Any]] = {}
         self._init_db()
         self._load_or_genesis()
 
@@ -161,7 +162,7 @@ class Blockchain:
         # Upper 64 bits of target for GPU filter
         target_high = (target >> 192) & 0xFFFFFFFFFFFFFFFF
 
-        return {
+        template = {
             "height": height,
             "prev_hash": tip.hash,
             "merkle_root": merkle,
@@ -174,6 +175,10 @@ class Blockchain:
             "miner_address": miner_address,
             "transactions": [tx.to_dict() for tx in all_txs]
         }
+        self.active_templates[(miner_address, height, now_ts)] = template
+        if len(self.active_templates) > 100:
+            self.active_templates.clear()
+        return template
 
     def add_block_candidate(
         self,
@@ -188,8 +193,13 @@ class Blockchain:
         if height != tip.height + 1:
             return False, f"Stale block height: expected {tip.height + 1}, got {height}"
 
-        # Reconstruct block from template
-        template = self.create_block_template(miner_address)
+        # Reconstruct block from template (using cached template if available)
+        template = None
+        if timestamp is not None and (miner_address, height, timestamp) in self.active_templates:
+            template = self.active_templates[(miner_address, height, timestamp)]
+        
+        if template is None:
+            template = self.create_block_template(miner_address)
         block_time = timestamp if timestamp is not None else template["timestamp"]
 
         header = BlockHeader(
