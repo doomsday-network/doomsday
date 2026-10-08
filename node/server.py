@@ -825,6 +825,17 @@ if os.path.exists(web_dir):
             status_code=302
         )
 
+    @app.get("/api/version")
+    def get_version_info():
+        return {
+            "version": "1.0.0",
+            "tag_name": "v1.0.0",
+            "name": "Doomsday Network v1.0.0 - Sovereign Mainnet Genesis",
+            "download_url": "https://github.com/doomsday-network/doomsday/releases/download/v1.0.0/Doomsday-v1.0.0-Windows-x64.zip",
+            "release_url": "https://github.com/doomsday-network/doomsday/releases/latest",
+            "release_notes": "Sovereign Mainnet Genesis with zero-lag Proof-of-Idle-Work Sentinel, Multi-GPU matrix, CEX RPC daemon, and interactive Whitepaper."
+        }
+
 
 @app.on_event("startup")
 async def on_startup():

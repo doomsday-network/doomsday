@@ -193,6 +193,147 @@ document.addEventListener('DOMContentLoaded', async () => {
     updateForceButtonUI(!!config.force_mine);
     updateScheduleBadge();
 
+    // Software Updates Setup
+    const modalUpdate = document.getElementById('modal-update');
+    const badgeUpdate = document.getElementById('badge-update');
+    const btnCheckUpdates = document.getElementById('btn-check-updates');
+    const updateSpinner = document.getElementById('update-spinner');
+    const updateBtnText = document.getElementById('update-btn-text');
+    const btnCloseUpdate = document.getElementById('btn-close-update');
+    const btnCloseUpdateX = document.getElementById('btn-close-update-x');
+    const btnDownloadUpdate = document.getElementById('btn-download-update');
+    const btnViewRelease = document.getElementById('btn-view-release');
+
+    const updateStatusIcon = document.getElementById('update-status-icon');
+    const updateStatusTitle = document.getElementById('update-status-title');
+    const updateStatusSub = document.getElementById('update-status-sub');
+    const updateDetailsBox = document.getElementById('update-details-box');
+    const updateReleaseName = document.getElementById('update-release-name');
+    const updateReleaseNotes = document.getElementById('update-release-notes');
+
+    let currentVersion = '1.0.0';
+    let currentUpdateInfo = null;
+
+    try {
+      window.doomsdayAPI.getCurrentVersion().then(v => {
+        if (v) {
+          currentVersion = v;
+          const verSpan = document.getElementById('val-current-version');
+          if (verSpan) verSpan.innerText = `v${v}`;
+          if (updateBtnText) updateBtnText.innerText = `Check for Updates (v${v})`;
+        }
+      });
+    } catch (e) {}
+
+    async function handleCheckForUpdates(showModal = true) {
+      if (updateSpinner) updateSpinner.style.display = 'inline-block';
+      if (updateBtnText) updateBtnText.innerText = 'Checking...';
+
+      if (showModal) {
+        modalUpdate.style.display = 'flex';
+        updateStatusIcon.innerText = '🔄';
+        updateStatusTitle.innerText = 'Checking for updates...';
+        updateStatusTitle.style.color = '#fff';
+        updateStatusSub.innerHTML = `Current version: <strong>v${currentVersion}</strong>`;
+        updateDetailsBox.style.display = 'none';
+        btnDownloadUpdate.style.display = 'none';
+        btnViewRelease.style.display = 'none';
+      }
+
+      try {
+        const info = await window.doomsdayAPI.checkForUpdates();
+        currentUpdateInfo = info;
+
+        if (info && info.has_update) {
+          if (badgeUpdate) {
+            badgeUpdate.style.display = 'block';
+            badgeUpdate.innerText = `✨ v${info.latest_version} Available`;
+          }
+
+          if (showModal) {
+            updateStatusIcon.innerText = '✨';
+            updateStatusTitle.innerText = `New Update Available! (v${info.latest_version})`;
+            updateStatusTitle.style.color = 'var(--green)';
+            updateStatusSub.innerHTML = `You are on <strong>v${currentVersion}</strong> • Latest is <strong>v${info.latest_version}</strong>`;
+            
+            updateReleaseName.innerText = info.name || `Doomsday v${info.latest_version}`;
+            updateReleaseNotes.innerText = info.release_notes || 'Performance enhancements and bug fixes.';
+            updateDetailsBox.style.display = 'block';
+
+            btnDownloadUpdate.style.display = 'flex';
+            btnDownloadUpdate.innerText = `⬇ Download v${info.latest_version} (Zip)`;
+            btnViewRelease.style.display = 'flex';
+          }
+        } else {
+          if (badgeUpdate) badgeUpdate.style.display = 'none';
+          if (showModal) {
+            updateStatusIcon.innerText = '✅';
+            updateStatusTitle.innerText = 'You are on the latest version!';
+            updateStatusTitle.style.color = '#fff';
+            updateStatusSub.innerHTML = `Doomsday is completely up to date (<strong>v${currentVersion}</strong>)`;
+            updateDetailsBox.style.display = 'none';
+            btnDownloadUpdate.style.display = 'none';
+            btnViewRelease.style.display = 'none';
+          }
+        }
+      } catch (err) {
+        if (showModal) {
+          updateStatusIcon.innerText = '⚠️';
+          updateStatusTitle.innerText = 'Unable to check for updates';
+          updateStatusTitle.style.color = 'var(--primary)';
+          updateStatusSub.innerText = err.message || 'Check your internet connection.';
+        }
+      } finally {
+        if (updateSpinner) updateSpinner.style.display = 'none';
+        if (updateBtnText) updateBtnText.innerText = `Check for Updates (v${currentVersion})`;
+      }
+    }
+
+    if (btnCheckUpdates) {
+      btnCheckUpdates.addEventListener('click', (e) => {
+        e.preventDefault();
+        handleCheckForUpdates(true);
+      });
+    }
+
+    if (badgeUpdate) {
+      badgeUpdate.addEventListener('click', () => {
+        handleCheckForUpdates(true);
+      });
+    }
+
+    const hideUpdateModal = () => { modalUpdate.style.display = 'none'; };
+    if (btnCloseUpdate) btnCloseUpdate.addEventListener('click', hideUpdateModal);
+    if (btnCloseUpdateX) btnCloseUpdateX.addEventListener('click', hideUpdateModal);
+
+    if (btnDownloadUpdate) {
+      btnDownloadUpdate.addEventListener('click', () => {
+        if (currentUpdateInfo && currentUpdateInfo.download_url) {
+          window.doomsdayAPI.openExternal(currentUpdateInfo.download_url);
+        }
+      });
+    }
+
+    if (btnViewRelease) {
+      btnViewRelease.addEventListener('click', () => {
+        if (currentUpdateInfo && currentUpdateInfo.release_url) {
+          window.doomsdayAPI.openExternal(currentUpdateInfo.release_url);
+        }
+      });
+    }
+
+    window.doomsdayAPI.onUpdateAvailable((info) => {
+      currentUpdateInfo = info;
+      if (info && info.has_update && badgeUpdate) {
+        badgeUpdate.style.display = 'block';
+        badgeUpdate.innerText = `✨ v${info.latest_version} Available`;
+      }
+    });
+
+    window.doomsdayAPI.onTriggerCheckUpdates(() => {
+      handleCheckForUpdates(true);
+    });
+
     // Start miner if not already running
     window.doomsdayAPI.startMiner(config);
   }

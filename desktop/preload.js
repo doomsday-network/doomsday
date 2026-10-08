@@ -13,5 +13,9 @@ contextBridge.exposeInMainWorld('doomsdayAPI', {
   closeWindow: () => ipcRenderer.invoke('close-window'),
   openExternal: (url) => ipcRenderer.invoke('open-external', url),
   toggleForceMine: () => ipcRenderer.invoke('toggle-force-mine'),
-  updateSchedule: (scheduleCfg) => ipcRenderer.invoke('update-schedule', scheduleCfg)
+  updateSchedule: (scheduleCfg) => ipcRenderer.invoke('update-schedule', scheduleCfg),
+  getCurrentVersion: () => ipcRenderer.invoke('get-current-version'),
+  checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
+  onUpdateAvailable: (callback) => ipcRenderer.on('update-available', (_event, updateInfo) => callback(updateInfo)),
+  onTriggerCheckUpdates: (callback) => ipcRenderer.on('trigger-check-updates', () => callback())
 });

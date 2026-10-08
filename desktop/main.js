@@ -106,6 +106,16 @@ if (!gotTheLock) {
     if (!config.first_run && config.wallet_address) {
       startMinerChildProcess(config);
     }
+
+    // Silent background check for updates after 4 seconds
+    setTimeout(async () => {
+      try {
+        const info = await fetchUpdateInfo();
+        if (info && info.has_update && mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('update-available', info);
+        }
+      } catch (e) {}
+    }, 4000);
   });
 }
 
@@ -208,6 +218,17 @@ function updateTrayMenu() {
     {
       label: 'Open Web Explorer',
       click: () => shell.openExternal('https://doomsday.network')
+    },
+    {
+      label: 'Check for Updates...',
+      click: () => {
+        if (mainWindow) {
+          if (mainWindow.isMinimized()) mainWindow.restore();
+          mainWindow.show();
+          mainWindow.focus();
+          mainWindow.webContents.send('trigger-check-updates');
+        }
+      }
     },
     {
       label: 'Quit Completely',
@@ -458,6 +479,97 @@ ipcMain.handle('update-schedule', (_event, sched) => {
   startMinerChildProcess(cfg);
   broadcastMinerUpdate();
   return true;
+});
+
+function semverCompare(v1, v2) {
+  const p1 = (v1 || '').replace(/^v/, '').split('.').map(Number);
+  const p2 = (v2 || '').replace(/^v/, '').split('.').map(Number);
+  for (let i = 0; i < Math.max(p1.length, p2.length); i++) {
+    const num1 = p1[i] || 0;
+    const num2 = p2[i] || 0;
+    if (num1 > num2) return 1;
+    if (num1 < num2) return -1;
+  }
+  return 0;
+}
+
+async function fetchUpdateInfo() {
+  const currentVersion = app.getVersion() || '1.0.0';
+  let updateData = null;
+
+  // 1. Try GitHub Releases API first
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 4000);
+    const res = await fetch('https://api.github.com/repos/doomsday-network/doomsday/releases/latest', {
+      headers: { 'User-Agent': 'Doomsday-Desktop/' + currentVersion },
+      signal: controller.signal
+    });
+    clearTimeout(timeout);
+    if (res.ok) {
+      const data = await res.json();
+      let downloadUrl = 'https://github.com/doomsday-network/doomsday/releases/download/' + data.tag_name + '/Doomsday-' + data.tag_name + '-Windows-x64.zip';
+      if (Array.isArray(data.assets)) {
+        const winAsset = data.assets.find(a => a.name.toLowerCase().endsWith('.zip') || a.name.toLowerCase().endsWith('.exe'));
+        if (winAsset && winAsset.browser_download_url) {
+          downloadUrl = winAsset.browser_download_url;
+        }
+      }
+      updateData = {
+        current_version: currentVersion,
+        latest_version: (data.tag_name || '').replace(/^v/, ''),
+        tag_name: data.tag_name,
+        name: data.name || data.tag_name,
+        release_notes: data.body || 'No release notes provided.',
+        download_url: downloadUrl,
+        release_url: data.html_url || 'https://github.com/doomsday-network/doomsday/releases/latest'
+      };
+    }
+  } catch (err) {
+    console.log('[Update] GitHub API query failed, checking seed node fallback...', err.message);
+  }
+
+  // 2. Fallback to seed node /api/version
+  if (!updateData) {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 3000);
+      const res = await fetch('https://doomsday.network/api/version', { signal: controller.signal });
+      clearTimeout(timeout);
+      if (res.ok) {
+        const data = await res.json();
+        updateData = {
+          current_version: currentVersion,
+          latest_version: (data.version || '').replace(/^v/, ''),
+          tag_name: data.tag_name || ('v' + data.version),
+          name: data.name || ('Doomsday v' + data.version),
+          release_notes: data.release_notes || '',
+          download_url: data.download_url,
+          release_url: data.release_url
+        };
+      }
+    } catch (fallbackErr) {
+      console.log('[Update] Fallback endpoint check failed:', fallbackErr.message);
+    }
+  }
+
+  if (!updateData) {
+    return {
+      current_version: currentVersion,
+      latest_version: currentVersion,
+      has_update: false,
+      error: 'Unable to reach update servers. Check your connection.'
+    };
+  }
+
+  const hasUpdate = semverCompare(updateData.latest_version, currentVersion) > 0;
+  updateData.has_update = hasUpdate;
+  return updateData;
+}
+
+ipcMain.handle('get-current-version', () => app.getVersion() || '1.0.0');
+ipcMain.handle('check-for-updates', async () => {
+  return await fetchUpdateInfo();
 });
 
 app.on('window-all-closed', () => {
