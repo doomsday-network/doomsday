@@ -5,7 +5,7 @@ import os
 import time
 from typing import Dict, Any, List, Optional
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Header, Depends
-from fastapi.responses import HTMLResponse, FileResponse
+from fastapi.responses import HTMLResponse, FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from node.blockchain import Blockchain
@@ -820,7 +820,10 @@ if os.path.exists(web_dir):
         for p in candidates:
             if os.path.exists(p):
                 return FileResponse(p, filename="Doomsday-v1.0.0-Windows-x64.zip", media_type="application/zip")
-        raise HTTPException(status_code=404, detail="Release file not found")
+        return RedirectResponse(
+            url="https://github.com/doomsday-network/doomsday/releases/download/v1.0.0/Doomsday-v1.0.0-Windows-x64.zip",
+            status_code=302
+        )
 
 
 @app.on_event("startup")
