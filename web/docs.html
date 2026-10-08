@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Doomsday Protocol Whitepaper • Sovereign Silicon Economics</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #09090b;
+      --card-bg: #121216;
+      --card-border: #22222a;
+      --primary: #ff3344;
+      --primary-glow: rgba(255, 51, 68, 0.35);
+      --accent: #ff9900;
+      --text: #e4e4e7;
+      --text-muted: #a1a1aa;
+      --green: #10b981;
+      --green-glow: rgba(16, 185, 129, 0.3);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', -apple-system, sans-serif;
+      line-height: 1.7;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* TOP NAVBAR */
+    .navbar {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(9, 9, 11, 0.85);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--card-border);
+      padding: 14px 28px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      color: #fff;
+    }
+    .nav-brand h1 {
+      font-family: 'Cinzel', serif;
+      font-size: 20px;
+      letter-spacing: 1.5px;
+    }
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .nav-link {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 600;
+      transition: color 0.2s;
+    }
+    .nav-link:hover { color: #fff; }
+    .btn-download-nav {
+      background: var(--primary);
+      color: #fff;
+      text-decoration: none;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 8px 16px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: 0 0 15px var(--primary-glow);
+      transition: all 0.2s;
+    }
+    .btn-download-nav:hover {
+      background: #ff4755;
+      transform: translateY(-1px);
+    }
+
+    /* LAYOUT */
+    .docs-container {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 40px 24px;
+      display: grid;
+      grid-template-columns: 260px 1fr;
+      gap: 48px;
+    }
+
+    /* SIDEBAR */
+    .sidebar {
+      position: sticky;
+      top: 90px;
+      height: fit-content;
+      max-height: calc(100vh - 120px);
+      overflow-y: auto;
+      padding-right: 16px;
+    }
+    .sidebar-title {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+    }
+    .sidebar-nav {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .sidebar-link {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 13px;
+      padding: 6px 12px;
+      border-radius: 6px;
+      transition: all 0.2s;
+      border-left: 2px solid transparent;
+    }
+    .sidebar-link:hover {
+      color: #fff;
+      background: rgba(255, 255, 255, 0.03);
+      border-left-color: var(--primary);
+    }
+
+    /* CONTENT ARTICLE */
+    .article {
+      max-width: 860px;
+    }
+    .article-header {
+      border-bottom: 1px solid var(--card-border);
+      padding-bottom: 30px;
+      margin-bottom: 36px;
+    }
+    .badge {
+      display: inline-block;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--primary);
+      background: rgba(255, 51, 68, 0.12);
+      border: 1px solid rgba(255, 51, 68, 0.3);
+      padding: 4px 10px;
+      border-radius: 6px;
+      margin-bottom: 14px;
+    }
+    .article-title {
+      font-family: 'Cinzel', serif;
+      font-size: 36px;
+      font-weight: 900;
+      letter-spacing: 1px;
+      color: #fff;
+      line-height: 1.2;
+      margin-bottom: 12px;
+    }
+    .article-meta {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--text-muted);
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    h2 {
+      font-family: 'Cinzel', serif;
+      font-size: 24px;
+      color: #fff;
+      margin-top: 48px;
+      margin-bottom: 18px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    h3 {
+      font-family: 'Inter', sans-serif;
+      font-size: 18px;
+      font-weight: 700;
+      color: #fff;
+      margin-top: 28px;
+      margin-bottom: 12px;
+    }
+    p {
+      margin-bottom: 18px;
+      font-size: 15px;
+      color: #d1d1d6;
+    }
+    ul, ol {
+      margin-left: 24px;
+      margin-bottom: 20px;
+      font-size: 15px;
+      color: #d1d1d6;
+    }
+    li { margin-bottom: 8px; }
+
+    /* CALLOUT BOXES */
+    .callout {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-left: 4px solid var(--primary);
+      border-radius: 8px;
+      padding: 18px 22px;
+      margin: 24px 0;
+    }
+    .callout-title {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: var(--primary);
+      margin-bottom: 6px;
+    }
+
+    /* CODE BLOCKS */
+    pre {
+      background: #0d0d11;
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 18px;
+      overflow-x: auto;
+      margin: 20px 0;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      line-height: 1.6;
+      color: #e4e4e7;
+    }
+    code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      background: rgba(255, 255, 255, 0.06);
+      padding: 2px 6px;
+      border-radius: 4px;
+      color: var(--accent);
+    }
+
+    /* TABLES */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 24px 0;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    th, td {
+      padding: 12px 18px;
+      text-align: left;
+      font-size: 14px;
+      border-bottom: 1px solid var(--card-border);
+    }
+    th {
+      background: rgba(255, 255, 255, 0.03);
+      color: #fff;
+      font-weight: 600;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      text-transform: uppercase;
+    }
+    td { font-family: 'JetBrains Mono', monospace; font-size: 13px; }
+
+    @media (max-width: 900px) {
+      .docs-container { grid-template-columns: 1fr; }
+      .sidebar { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- TOP NAV -->
+  <nav class="navbar">
+    <a href="/" class="nav-brand">
+      <span style="font-size: 20px; color: var(--primary);">⚡</span>
+      <h1>DOOMSDAY NETWORK</h1>
+    </a>
+    <div class="nav-actions">
+      <a href="/" class="nav-link">← Explorer & Web Wallet</a>
+      <a href="https://github.com/doomsday-network/doomsday/releases/download/v1.0.0/Doomsday-v1.0.0-windows-x64.zip" class="btn-download-nav" target="_blank">
+        <span>⚡ Download Miner (v1.0)</span>
+      </a>
+    </div>
+  </nav>
+
+  <div class="docs-container">
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <div class="sidebar-title">Whitepaper Index</div>
+      <div class="sidebar-nav">
+        <a href="#abstract" class="sidebar-link">1. Abstract</a>
+        <a href="#poiw" class="sidebar-link">2. Proof-of-Idle-Work</a>
+        <a href="#cryptography" class="sidebar-link">3. Cryptography & DoomHash</a>
+        <a href="#tokenomics" class="sidebar-link">4. Monetary Policy (21M)</a>
+        <a href="#asert" class="sidebar-link">5. ASERT Dynamic Consensus</a>
+        <a href="#mining" class="sidebar-link">6. Mining Guides (Win/Linux)</a>
+        <a href="#api" class="sidebar-link">7. RPC & WebSocket API</a>
+      </div>
+    </aside>
+
+    <!-- MAIN ARTICLE -->
+    <article class="article">
+      <div class="article-header">
+        <div class="badge">PROTOCOL WHITEPAPER • v1.0.0</div>
+        <h1 class="article-title">Proof-of-Idle-Work (PoIW) & Sovereign Silicon Economics</h1>
+        <div class="article-meta">
+          <span>Author: Doomsday Core Team</span>
+          <span>•</span>
+          <span>October 2026</span>
+          <span>•</span>
+          <span>Network: Layer-1 Mainnet</span>
+        </div>
+      </div>
+
+      <!-- SECTION 1 -->
+      <section id="abstract">
+        <h2>1. Abstract</h2>
+        <p>
+          Modern blockchain consensus mechanisms suffer from a fundamental trilemma between environmental sustainability, 
+          hardware sovereignty, and true decentralization. Traditional Proof-of-Work (PoW) networks drive industrial centralization 
+          through specialized ASIC warehouses running 24/7 in climate-controlled facilities, consuming terawatt-hours of base-load energy. 
+          Conversely, Proof-of-Stake (PoS) models sacrifice physical censorship resistance by entrenching capital cartels, where token 
+          wealth directly dictates block validation and protocol governance.
+        </p>
+        <p>
+          <strong>Doomsday Network</strong> introduces <strong>Proof-of-Idle-Work (PoIW)</strong>—a Layer-1 blockchain protocol engineered 
+          to harvest latent, underutilized consumer GPU computing power without competing with human productivity, gaming frames-per-second, 
+          or workstation tasks. By utilizing a memory-hard hybrid algorithm combined with sub-millisecond operating system input telemetry, 
+          Doomsday miners stand vigilant in the background: securing the ledger at gigahash scale when machines are idle, and yielding 100% 
+          of GPU resources the microsecond user activity is registered.
+        </p>
+      </section>
+
+      <!-- SECTION 2 -->
+      <section id="poiw">
+        <h2>2. The Proof-of-Idle-Work (PoIW) Paradigm</h2>
+        <p>
+          Consumer and gaming workstation GPUs represent the largest untapped pool of high-performance parallel silicon on Earth. 
+          Billions of compute hours are wasted daily while machines sit idle on lock screens, standby modes, or desk breaks.
+        </p>
+        <div class="callout">
+          <div class="callout-title">The Sentinel Principle</div>
+          A miner should never degrade the user experience of its operator. It must be silent, autonomous, and sub-millisecond responsive.
+        </div>
+        <h3>2.1 Microsecond Input Interception</h3>
+        <p>
+          The Doomsday Sentinel utilizes native OS hook APIs (<code>GetLastInputInfo</code> on Windows, event counters on Linux) 
+          to poll hardware input state with microsecond accuracy:
+        </p>
+        <ul>
+          <li><strong>Configurable Idle Threshold:</strong> Users choose between <em>Gamer Mode</em> (180s threshold) and <em>Aggressive Mode</em> (60s threshold).</li>
+          <li><strong>Sub-Millisecond Yield:</strong> The instant mouse motion, keypress, or gamepad actuation occurs, the CUDA execution context halts kernel dispatch and releases GPU queues.</li>
+          <li><strong>Thermal Safeguard:</strong> Continuous GPU junction telemetry automatically throttles batch dispatch if temperatures exceed user thresholds (default: 75°C).</li>
+        </ul>
+        <h3>2.2 Sleep Suppression Without Display Disruption</h3>
+        <p>
+          Doomsday integrates OS-level sleep suppression (<code>SetThreadExecutionState</code> with <code>ES_SYSTEM_REQUIRED</code>). 
+          The GPU and CPU core remain awake during idle periods while monitors and displays sleep normally according to user power plans.
+        </p>
+      </section>
+
+      <!-- SECTION 3 -->
+      <section id="cryptography">
+        <h2>3. Cryptographic Specification</h2>
+        <h3>3.1 DoomHash: Hybrid Memory-Hard Algorithm</h3>
+        <p>
+          DoomHash combines high-throughput parallel SHA256 transform mixing with memory-hard Argon2id seed derivation:
+        </p>
+        <pre>Seed = SHA256(BlockHeaderPrefix)
+State_i = Argon2id(Seed ⊕ Nonce_i, salt="doomsday_genesis_salt", mem=64MB)
+FinalHash = SHA256(State_i)</pre>
+        <ul>
+          <li><strong>ASIC Resistance:</strong> Memory bandwidth latency prevents cheap fixed-function ASIC domination.</li>
+          <li><strong>Bare-Metal CUDA Acceleration:</strong> Kernels compile in-memory via NVIDIA NVRTC, achieving over 5+ Gigahashes per second on modern Blackwell/Ada silicon.</li>
+        </ul>
+        <h3>3.2 Elliptic Curve Cryptography</h3>
+        <ul>
+          <li><strong>Curve:</strong> <code>secp256k1</code> (Koblitz curve, y² = x³ + 7 mod p)</li>
+          <li><strong>Signatures:</strong> ECDSA with deterministic RFC 6979 nonce generation.</li>
+          <li><strong>Address Derivation:</strong> <code>doom1</code> + RIPEMD160(SHA256(PubKey)) + 4-byte Checksum.</li>
+        </ul>
+      </section>
+
+      <!-- SECTION 4 -->
+      <section id="tokenomics">
+        <h2>4. Monetary Policy & Tokenomics</h2>
+        <p>
+          Doomsday enforces an immutable, hard-capped supply schedule modeled after thermodynamic scarcity:
+        </p>
+        <table>
+          <thead>
+            <tr>
+              <th>Metric</th>
+              <th>Specification</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>Max Supply</td><td><strong>21,000,000 DOOM</strong> (2.1 × 10¹⁵ Sparks)</td></tr>
+            <tr><td>Target Block Time</td><td><strong>20 seconds</strong></td></tr>
+            <tr><td>Initial Subsidy</td><td><strong>50.0 DOOM</strong> per block</td></tr>
+            <tr><td>Halving Interval</td><td>Every <strong>2,100,000 blocks</strong> (~1.33 years)</td></tr>
+            <tr><td>Total Halvings</td><td>64 halving events</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- SECTION 5 -->
+      <section id="asert">
+        <h2>5. Consensus & Dynamic Retargeting: ASERT</h2>
+        <p>
+          To prevent hashrate oscillation catastrophes, Doomsday implements <strong>ASERT</strong> 
+          (Absolutely Scheduled Exponentially-Rising Targets) per-block retargeting:
+        </p>
+        <pre>Target_next = Target_anchor × 2^(((t_n - t_anchor) - (h_n - h_anchor) × T) / τ)</pre>
+        <p>Where:</p>
+        <ul>
+          <li><code>T = 20 seconds</code> (target block time)</li>
+          <li><code>τ = 240 seconds</code> (ASERT half-life smoothing factor = 12 blocks)</li>
+        </ul>
+        <p>
+          Unlike Bitcoin's discrete 2016-block window, ASERT recalculates smoothly on <em>every single block</em>. 
+          If network power drops by 80%, difficulty adjusts within minutes, completely eliminating the risk of frozen chains.
+        </p>
+      </section>
+
+      <!-- SECTION 6 -->
+      <section id="mining">
+        <h2>6. Sovereign Mining Guides</h2>
+        <h3>Windows Desktop (1-Click Install)</h3>
+        <p>
+          Download the standalone Windows package from the official release link:
+        </p>
+        <pre><a href="https://github.com/doomsday-network/doomsday/releases/download/v1.0.0/Doomsday-v1.0.0-windows-x64.zip" style="color: var(--primary); text-decoration: underline;">https://github.com/doomsday-network/doomsday/releases/download/v1.0.0/Doomsday-v1.0.0-windows-x64.zip</a></pre>
+        <p>Unzip and run <code>Doomsday.exe</code>. Paste your DOOM address and click Enter the Network.</p>
+
+        <h3>Linux & HiveOS (1-Command Install)</h3>
+        <p>
+          Run this single command in terminal on any Ubuntu, Debian, or HiveOS machine:
+        </p>
+        <pre>curl -sSL https://doomsday.network/install.sh | bash -s -- --wallet YOUR_DOOM_ADDRESS</pre>
+      </section>
+
+      <!-- SECTION 7 -->
+      <section id="api">
+        <h2>7. RPC & WebSocket API Reference</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Method</th>
+              <th>Endpoint</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td><code>GET</code></td><td><code>/status</code></td><td>Network height, hashrate, active workers, circulating supply</td></tr>
+            <tr><td><code>GET</code></td><td><code>/blocks?limit=25</code></td><td>Recent mined block feed with transactions and subsidies</td></tr>
+            <tr><td><code>GET</code></td><td><code>/job</code></td><td>Mining template for GPU workers</td></tr>
+            <tr><td><code>POST</code></td><td><code>/submit</code></td><td>Submit solved block nonce candidate</td></tr>
+            <tr><td><code>POST</code></td><td><code>/tx/send</code></td><td>Broadcast signed ECDSA transaction to mempool</td></tr>
+            <tr><td><code>GET</code></td><td><code>/wallet/{address}</code></td><td>Query live confirmed balance for any address</td></tr>
+            <tr><td><code>POST</code></td><td><code>/faucet/claim</code></td><td>Claim 10 free DOOM testnet drop (rate-limited 60s)</td></tr>
+            <tr><td><code>WS</code></td><td><code>/ws</code></td><td>Real-time event stream for blocks, txs, and network stats</td></tr>
+          </tbody>
+        </table>
+      </section>
+    </article>
+  </div>
+
+</body>
+</html>

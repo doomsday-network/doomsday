@@ -337,6 +337,11 @@ if os.path.exists(web_dir):
     def index():
         return FileResponse(os.path.join(web_dir, "index.html"))
 
+    @app.get("/docs")
+    @app.get("/whitepaper")
+    def get_docs():
+        return FileResponse(os.path.join(web_dir, "docs.html"))
+
     @app.get("/install.sh")
     def get_install_script():
         script_path = os.path.join(web_dir, "install.sh")
