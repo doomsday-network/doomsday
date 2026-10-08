@@ -7,7 +7,7 @@ from typing import Dict, Any, List, Optional
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Header, Depends, Request
 from fastapi.responses import HTMLResponse, FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from node.blockchain import Blockchain
 from node.pool import MiningPool
 from node.p2p import P2PManager
@@ -72,19 +72,19 @@ connected_sockets: List[WebSocket] = []
 
 
 class SubmitBlockRequest(BaseModel):
-    height: int
+    height: int = Field(..., ge=0)
     nonce: int
-    hash: str
-    miner_name: str = "Rig-Default"
-    miner_address: str
+    hash: str = Field(..., min_length=16, max_length=64)
+    miner_name: str = Field("Rig-Default", max_length=64)
+    miner_address: str = Field(..., min_length=10, max_length=64)
     timestamp: Optional[int] = None
 
 
 class PoolSubmitRequest(BaseModel):
-    height: int
+    height: int = Field(..., ge=0)
     nonce: int
-    worker_address: str
-    worker_name: str = "Rig-Default"
+    worker_address: str = Field(..., min_length=10, max_length=64)
+    worker_name: str = Field("Rig-Default", max_length=64)
     timestamp: Optional[int] = None
 
 
@@ -144,11 +144,11 @@ def verify_exchange_auth(x_api_key: Optional[str] = Header(None)):
 
 
 class P2PHandshakeRequest(BaseModel):
-    node_id: str
-    version: str = "1.0.0"
-    listen_port: int = 8334
-    height: int
-    tip_hash: str
+    node_id: str = Field(..., min_length=1, max_length=64)
+    version: str = Field("1.0.0", max_length=32)
+    listen_port: int = Field(8334, ge=1, le=65535)
+    height: int = Field(..., ge=0)
+    tip_hash: str = Field(..., min_length=16, max_length=64)
 
 
 class P2PBlockGossipRequest(BaseModel):
@@ -398,7 +398,11 @@ def get_p2p_blocks(start_height: int = 0, limit: int = 50):
 
 @app.post("/p2p/block")
 async def receive_p2p_block(req: P2PBlockGossipRequest):
-    b = Block.from_dict(req.block)
+    try:
+        b = Block.from_dict(req.block)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Malformed block structure: {e}")
+
     if b.hash in p2p.seen_blocks:
         return {"accepted": True, "duplicate": True}
 
@@ -430,7 +434,11 @@ async def receive_p2p_block(req: P2PBlockGossipRequest):
 
 @app.post("/p2p/tx")
 async def receive_p2p_tx(req: P2PTxGossipRequest):
-    tx = Transaction.from_dict(req.transaction)
+    try:
+        tx = Transaction.from_dict(req.transaction)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Malformed transaction structure: {e}")
+
     if tx.txid in p2p.seen_txs:
         return {"accepted": True, "duplicate": True}
 

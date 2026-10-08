@@ -723,6 +723,16 @@
   <script src="/static/elliptic.min.js"></script>
   <script src="/static/doomsday-crypto.js"></script>
   <script>
+    function escapeHtml(str) {
+      if (str === null || str === undefined) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
     // Live WebSocket connection
     let ws;
     function connectWS() {
@@ -782,20 +792,21 @@
         blocks.forEach(b => {
           const row = document.createElement('tr');
           row.style.cursor = 'pointer';
-          const miner = b.header.miner_address ? `${b.header.miner_address.slice(0, 14)}...` : 'Genesis';
-          const timeStr = new Date(b.header.timestamp * 1000).toLocaleTimeString();
+          const minerRaw = b.header.miner_address ? `${b.header.miner_address.slice(0, 14)}...` : 'Genesis';
+          const miner = escapeHtml(minerRaw);
+          const timeStr = escapeHtml(new Date(b.header.timestamp * 1000).toLocaleTimeString());
           const txCount = b.transactions ? b.transactions.length : 1;
           const hasUserTx = txCount > 1;
           const txBadge = hasUserTx 
-            ? `<span style="background: rgba(16, 185, 129, 0.2); color: var(--green); padding: 3px 8px; border-radius: 4px; font-weight: 700; border: 1px solid var(--green-glow);">${txCount} txs (⚡ Transfer)</span>`
-            : `<span style="color: var(--text-muted);">${txCount} tx</span>`;
+            ? `<span style="background: rgba(16, 185, 129, 0.2); color: var(--green); padding: 3px 8px; border-radius: 4px; font-weight: 700; border: 1px solid var(--green-glow);">${escapeHtml(txCount)} txs (⚡ Transfer)</span>`
+            : `<span style="color: var(--text-muted);">${escapeHtml(txCount)} tx</span>`;
 
           row.innerHTML = `
-            <td style="color: #fff; font-weight: 700;">#${b.height}</td>
-            <td class="hash-cell">${b.hash.slice(0, 18)}...</td>
+            <td style="color: #fff; font-weight: 700;">#${escapeHtml(b.height)}</td>
+            <td class="hash-cell">${escapeHtml(b.hash.slice(0, 18))}...</td>
             <td>${txBadge}</td>
             <td>${miner}</td>
-            <td>${b.header.nonce.toLocaleString()}</td>
+            <td>${escapeHtml(b.header.nonce.toLocaleString())}</td>
             <td class="reward-cell">+50.0 DOOM</td>
             <td style="color: var(--text-muted);">${timeStr}</td>
           `;
@@ -806,20 +817,23 @@
           detailRow.style.background = 'rgba(255, 255, 255, 0.02)';
 
           let txHtml = `<div style="padding: 14px 20px; font-size: 13px; line-height: 1.6;">
-            <div style="font-weight: 700; color: var(--accent); margin-bottom: 8px;">Block #${b.height} Payload & Transactions</div>
-            <div style="color: var(--text-muted); margin-bottom: 8px; font-size: 12px;">Merkle Root: <span style="color: #fff;">${b.header.merkle_root}</span></div>`;
+            <div style="font-weight: 700; color: var(--accent); margin-bottom: 8px;">Block #${escapeHtml(b.height)} Payload & Transactions</div>
+            <div style="color: var(--text-muted); margin-bottom: 8px; font-size: 12px;">Merkle Root: <span style="color: #fff;">${escapeHtml(b.header.merkle_root)}</span></div>`;
 
           (b.transactions || []).forEach((tx, idx) => {
             if (tx.is_coinbase) {
+              const coinbaseRcpt = escapeHtml(tx.outputs[0].recipient);
               txHtml += `<div style="padding: 8px 12px; background: rgba(0,0,0,0.4); border-radius: 6px; margin-bottom: 6px; border-left: 3px solid var(--green);">
-                <span style="color: var(--green); font-weight: 600;">[Tx #${idx} Coinbase Subsidy]</span> 50.0 DOOM mined by <span style="color: #fff;">${tx.outputs[0].recipient}</span>
+                <span style="color: var(--green); font-weight: 600;">[Tx #${escapeHtml(idx)} Coinbase Subsidy]</span> 50.0 DOOM mined by <span style="color: #fff;">${coinbaseRcpt}</span>
               </div>`;
             } else {
               const amountDoom = tx.outputs[0].amount / 100000000;
+              const txidSafe = escapeHtml(tx.txid);
+              const rcptSafe = escapeHtml(tx.outputs[0].recipient);
               txHtml += `<div style="padding: 10px 12px; background: rgba(255, 153, 0, 0.12); border-radius: 6px; margin-bottom: 6px; border-left: 3px solid var(--accent);">
-                <div style="color: var(--accent); font-weight: 700;">⚡ [Tx #${idx} Peer Transfer] Sent ${amountDoom.toLocaleString()} DOOM</div>
-                <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">TxID: ${tx.txid}</div>
-                <div style="font-size: 12px; color: #fff; margin-top: 2px;">Recipient: ${tx.outputs[0].recipient}</div>
+                <div style="color: var(--accent); font-weight: 700;">⚡ [Tx #${escapeHtml(idx)} Peer Transfer] Sent ${escapeHtml(amountDoom.toLocaleString())} DOOM</div>
+                <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">TxID: ${txidSafe}</div>
+                <div style="font-size: 12px; color: #fff; margin-top: 2px;">Recipient: ${rcptSafe}</div>
               </div>`;
             }
           });
@@ -1097,13 +1111,15 @@
 
         let rowsHtml = '';
         peers.forEach(peer => {
-          const shortId = peer.node_id ? (peer.node_id.length > 12 ? peer.node_id.slice(0, 12) + '...' : peer.node_id) : 'anonymous';
-          const latencyStr = peer.latency_ms > 0 ? `${peer.latency_ms} ms` : '< 10 ms';
-          const heightStr = peer.height !== undefined ? `#${peer.height}` : '-';
+          const rawId = peer.node_id ? (peer.node_id.length > 12 ? peer.node_id.slice(0, 12) + '...' : peer.node_id) : 'anonymous';
+          const shortId = escapeHtml(rawId);
+          const peerAddr = escapeHtml(peer.address);
+          const latencyStr = escapeHtml(peer.latency_ms > 0 ? `${peer.latency_ms} ms` : '< 10 ms');
+          const heightStr = peer.height !== undefined ? `#${escapeHtml(peer.height)}` : '-';
           rowsHtml += `
             <tr>
               <td style="font-family: 'JetBrains Mono', monospace; color: var(--accent); font-weight: 700;">${shortId}</td>
-              <td style="font-family: 'JetBrains Mono', monospace; font-size: 13px;">${peer.address}</td>
+              <td style="font-family: 'JetBrains Mono', monospace; font-size: 13px;">${peerAddr}</td>
               <td><span style="font-weight: 700; color: #fff;">${heightStr}</span></td>
               <td style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text-muted);">${latencyStr}</td>
               <td><span style="color: var(--green); font-size: 12px; font-weight: 600;">● Active Mesh</span></td>
