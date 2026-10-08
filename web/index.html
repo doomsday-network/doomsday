@@ -684,9 +684,14 @@
         const res = await fetch('/status');
         const data = await res.json();
         document.getElementById('val-height').innerText = `#${data.height}`;
-        document.getElementById('val-tip').innerText = `${data.tip_hash.slice(0, 16)}...`;
+        if (data.p2p_syncing) {
+          document.getElementById('val-tip').innerHTML = `<span style="color: var(--accent);">⚡ Syncing Chain...</span>`;
+        } else {
+          document.getElementById('val-tip').innerText = `${data.tip_hash.slice(0, 16)}...`;
+        }
         document.getElementById('val-hashrate').innerText = `${data.cluster_hashrate_mhs.toLocaleString()} MH/s`;
-        document.getElementById('val-workers').innerText = `${data.active_workers} Active Worker${data.active_workers === 1 ? '' : 's'}`;
+        const peerCount = data.p2p_peers !== undefined ? data.p2p_peers : 0;
+        document.getElementById('val-workers').innerText = `${data.active_workers} Active Miner${data.active_workers === 1 ? '' : 's'} • ${peerCount} P2P Peer${peerCount === 1 ? '' : 's'}`;
         document.getElementById('val-supply').innerText = `${data.total_mined_doom.toLocaleString()} DOOM`;
         document.getElementById('val-diff').innerText = data.difficulty_bits;
       } catch (e) {

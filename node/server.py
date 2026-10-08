@@ -10,6 +10,8 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from node.blockchain import Blockchain
 from node.pool import MiningPool
+from node.p2p import P2PManager
+from core.block import Block
 from core.transaction import COIN, Transaction, TxInput, TxOutput
 
 app = FastAPI(title="Doomsday Network Node", version="1.0.0", docs_url="/api/docs", redoc_url=None)
@@ -48,6 +50,9 @@ def load_or_create_pool_wallet() -> Dict[str, str]:
 
 pool_wallet = load_or_create_pool_wallet()
 pool = MiningPool(chain=chain, pool_address=pool_wallet["address"], fee_pct=0.0)
+
+# P2P Wire Protocol Manager
+p2p = P2PManager(chain=chain, listen_port=8334)
 
 # Live Workers State: miner_name -> dict
 active_miners: Dict[str, Dict[str, Any]] = {}
@@ -93,6 +98,22 @@ class SendTxRequest(BaseModel):
 
 class FaucetClaimRequest(BaseModel):
     recipient_address: str
+
+
+class P2PHandshakeRequest(BaseModel):
+    node_id: str
+    version: str = "1.0.0"
+    listen_port: int = 8334
+    height: int
+    tip_hash: str
+
+
+class P2PBlockGossipRequest(BaseModel):
+    block: Dict[str, Any]
+
+
+class P2PTxGossipRequest(BaseModel):
+    transaction: Dict[str, Any]
 
 
 faucet_claims: Dict[str, float] = {}
@@ -146,7 +167,9 @@ def get_status():
         "max_supply": 21_000_000,
         "active_workers": len(active_workers_list),
         "cluster_hashrate_mhs": round(total_mhs, 2),
-        "mempool_size": len(chain.mempool)
+        "mempool_size": len(chain.mempool),
+        "p2p_peers": len([p for p in p2p.peers.values() if p.is_connected]),
+        "p2p_syncing": p2p.is_syncing
     }
 
 
@@ -183,6 +206,9 @@ async def submit_block(req: SubmitBlockRequest):
         "timestamp": tip.header.timestamp,
         "reward_doom": 50.0
     })
+
+    # Wire Gossip: Broadcast new block to P2P mesh
+    asyncio.create_task(p2p.broadcast_block(tip))
     return {"accepted": True, "height": tip.height, "hash": tip.hash}
 
 
@@ -214,6 +240,8 @@ async def submit_pool_share(req: PoolSubmitRequest):
             "timestamp": tip.header.timestamp,
             "reward_doom": 50.0
         })
+        # Wire Gossip: Broadcast pool-discovered block to P2P mesh
+        asyncio.create_task(p2p.broadcast_block(tip))
 
     await broadcast_event("pool_stats", pool.get_stats())
     return res
@@ -269,12 +297,93 @@ async def request_pool_payout(req: FaucetClaimRequest):
 
     await broadcast_event("new_tx", tx.to_dict())
     await broadcast_event("pool_stats", pool.get_stats())
+    asyncio.create_task(p2p.broadcast_tx(tx))
     return {
         "status": "payout_sent",
         "txid": tx.txid,
         "amount_doom": unpaid / COIN,
         "recipient": req.recipient_address
     }
+
+
+# ==============================================================================
+# P2P WIRE PROTOCOL ENDPOINTS
+# ==============================================================================
+
+@app.get("/p2p/status")
+def get_p2p_status():
+    return p2p.get_stats()
+
+
+@app.post("/p2p/handshake")
+async def p2p_handshake(req: P2PHandshakeRequest):
+    tip = chain.get_tip()
+    return {
+        "node_id": p2p.node_id,
+        "version": "1.0.0",
+        "height": tip.height,
+        "tip_hash": tip.hash,
+        "known_peers": [p.address for p in p2p.peers.values() if p.is_connected]
+    }
+
+
+@app.get("/p2p/peers")
+def get_p2p_peers():
+    return [p.to_dict() for p in p2p.peers.values()]
+
+
+@app.get("/p2p/blocks")
+def get_p2p_blocks(start_height: int = 0, limit: int = 50):
+    limit = min(max(1, limit), 100)
+    selected = chain.blocks[start_height:start_height + limit]
+    return [b.to_dict() for b in selected]
+
+
+@app.post("/p2p/block")
+async def receive_p2p_block(req: P2PBlockGossipRequest):
+    b = Block.from_dict(req.block)
+    if b.hash in p2p.seen_blocks:
+        return {"accepted": True, "duplicate": True}
+
+    p2p.seen_blocks.add(b.hash)
+    tip = chain.get_tip()
+
+    if b.height == tip.height + 1:
+        ok, msg = chain.add_external_block(b)
+        if not ok:
+            raise HTTPException(status_code=400, detail=msg)
+
+        await broadcast_event("new_block", {
+            "height": b.height,
+            "hash": b.hash,
+            "miner": b.header.miner_address,
+            "miner_name": "P2P-Peer",
+            "nonce": b.header.nonce,
+            "timestamp": b.header.timestamp,
+            "reward_doom": 50.0
+        })
+
+        asyncio.create_task(p2p.broadcast_block(b))
+        return {"accepted": True, "height": b.height, "hash": b.hash}
+    elif b.height > tip.height + 1:
+        return {"accepted": False, "status": "sync_required", "tip": tip.height}
+    else:
+        return {"accepted": False, "status": "stale"}
+
+
+@app.post("/p2p/tx")
+async def receive_p2p_tx(req: P2PTxGossipRequest):
+    tx = Transaction.from_dict(req.transaction)
+    if tx.txid in p2p.seen_txs:
+        return {"accepted": True, "duplicate": True}
+
+    p2p.seen_txs.add(tx.txid)
+    ok, reason = chain.add_transaction_to_mempool(tx)
+    if ok:
+        await broadcast_event("new_tx", tx.to_dict())
+        asyncio.create_task(p2p.broadcast_tx(tx))
+        return {"accepted": True, "txid": tx.txid}
+    return {"accepted": False, "reason": reason}
 
 
 @app.post("/miner/telemetry")
@@ -355,6 +464,7 @@ async def send_transaction(req: SendTxRequest):
         raise HTTPException(status_code=400, detail=reason)
 
     await broadcast_event("new_tx", tx.to_dict())
+    asyncio.create_task(p2p.broadcast_tx(tx))
     return {"txid": tx.txid, "status": "Broadcast to mempool"}
 
 
@@ -426,6 +536,7 @@ async def claim_faucet(req: FaucetClaimRequest):
 
     faucet_claims[req.recipient_address] = now
     await broadcast_event("new_tx", tx.to_dict())
+    asyncio.create_task(p2p.broadcast_tx(tx))
     return {
         "status": "success",
         "txid": tx.txid,
@@ -480,10 +591,20 @@ if os.path.exists(web_dir):
         return FileResponse(script_path, media_type="text/x-shellscript")
 
 
-def start_server(host: str = "0.0.0.0", port: int = 8334):
+@app.on_event("startup")
+async def on_startup():
+    p2p.start()
+
+
+def start_server(host: str = "0.0.0.0", port: int = 8334, peers: Optional[List[str]] = None):
     import uvicorn
+    p2p.listen_port = port
+    if peers:
+        for p_addr in peers:
+            p2p.register_peer(p_addr)
     print(f"\n=======================================================")
     print(f"[*] DOOMSDAY NODE ACTIVE: http://{host}:{port}")
+    print(f"P2P Wire Protocol: Node ID [{p2p.node_id}] | Port {port}")
     print(f"Explorer Dashboard: http://localhost:{port}")
     print(f"=======================================================\n")
     uvicorn.run(app, host=host, port=port, log_level="warning")
@@ -493,5 +614,6 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Doomsday Network Node Server")
     parser.add_argument("--host", default="0.0.0.0", help="Binding host")
     parser.add_argument("--web-port", type=int, default=8334, help="HTTP/Explorer port")
+    parser.add_argument("--peer", action="append", default=[], help="Connect to specific P2P peer(s)")
     args = parser.parse_args()
-    start_server(host=args.host, port=args.web_port)
+    start_server(host=args.host, port=args.web_port, peers=args.peer)

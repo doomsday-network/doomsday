@@ -233,6 +233,38 @@ class Blockchain:
         print(f"\n[Blockchain] [*] Block #{block.height} minted by [{miner_name}] ({miner_address[:12]}...) | Nonce: {nonce} | Hash: {block.hash[:16]}...")
         return True, "Accepted"
 
+    def add_external_block(self, block: Block) -> Tuple[bool, str]:
+        """Validate and commit a block received over P2P wire from a network peer."""
+        tip = self.get_tip()
+        if block.height <= tip.height:
+            for b in self.blocks:
+                if b.hash == block.hash:
+                    return False, "Block already in ledger"
+            return False, f"Stale block height: received {block.height}, tip is {tip.height}"
+
+        if block.height != tip.height + 1:
+            return False, f"Block height gap: expected {tip.height + 1}, got {block.height}"
+
+        if block.header.prev_hash != tip.hash:
+            return False, f"Parent hash mismatch: expected {tip.hash[:16]}..., got {block.header.prev_hash[:16]}..."
+
+        expected_bits = self.get_next_bits()
+        ok, reason = validate_block(block, tip, self.utxo_set, expected_bits=expected_bits)
+        if not ok:
+            return False, f"Consensus check failed: {reason}"
+
+        with sqlite3.connect(self.db_path) as conn:
+            self._save_block_to_db(block, conn)
+
+        self.blocks.append(block)
+        self._apply_block_utxos(block)
+
+        committed_ids = {tx.txid for tx in block.transactions}
+        self.mempool = [t for t in self.mempool if t.txid not in committed_ids]
+
+        print(f"\n[Blockchain] [P2P] Block #{block.height} accepted via Wire Gossip | Hash: {block.hash[:16]}...")
+        return True, "Accepted"
+
     def get_balance(self, address: str) -> int:
         """Return spendable balance in Sparks for a given address."""
         total = 0
