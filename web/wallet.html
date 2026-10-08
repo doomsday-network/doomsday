@@ -516,6 +516,10 @@
     }
   </script>
 
+  <!-- SOVEREIGN CLIENT CRYPTOGRAPHY -->
+  <script src="/static/elliptic.min.js"></script>
+  <script src="/static/doomsday-crypto.js"></script>
+
   <!-- WALLET LOGIC -->
   <script>
     let currentWallet = {
@@ -553,7 +557,7 @@
     async function refreshBalance() {
       if (!currentWallet.address) return;
       try {
-        const res = await fetch(`/rpc/exchange/address/${currentWallet.address}`);
+        const res = await fetch(`/wallet/${currentWallet.address}/utxos`);
         if (res.ok) {
           const data = await res.json();
           currentBalance = data.balance_doom;
@@ -609,22 +613,17 @@
       }
     }
 
-    // CREATE NEW WALLET
-    document.getElementById('btn-create-wallet').addEventListener('click', async () => {
+    // CREATE NEW WALLET (100% CLIENT-SIDE)
+    document.getElementById('btn-create-wallet').addEventListener('click', () => {
       try {
-        const res = await fetch('/rpc/exchange/create_address', { method: 'POST' });
-        if (res.ok) {
-          const data = await res.json();
-          currentWallet.address = data.address;
-          currentWallet.privateKey = data.private_key_wif;
-          localStorage.setItem('doomsday_web_wallet', JSON.stringify(currentWallet));
-          renderActiveWallet();
-          showAlert("✓ Brand new sovereign DOOM wallet created!");
-        } else {
-          showAlert("Failed to generate wallet on node", true);
-        }
+        const wallet = DoomsdayCrypto.generateWallet();
+        currentWallet.address = wallet.address;
+        currentWallet.privateKey = wallet.private_key;
+        localStorage.setItem('doomsday_web_wallet', JSON.stringify(currentWallet));
+        renderActiveWallet();
+        showAlert("✓ Brand new sovereign DOOM wallet generated 100% locally in browser memory!");
       } catch (e) {
-        showAlert("Network error connecting to node", true);
+        showAlert("Failed to generate wallet locally: " + e.message, true);
       }
     });
 
@@ -634,25 +633,29 @@
       b.style.display = b.style.display === 'none' ? 'block' : 'none';
     });
 
-    // EXECUTE IMPORT
+    // EXECUTE IMPORT (100% CLIENT-SIDE)
     document.getElementById('btn-execute-import').addEventListener('click', () => {
       const val = document.getElementById('input-import-key').value.trim();
       if (!val) return;
 
-      if (val.startsWith('doom1')) {
-        currentWallet.address = val;
-        currentWallet.privateKey = '';
-      } else {
-        currentWallet.privateKey = val;
-        // In local web wallet, address can be fetched via wallet RPC
-        currentWallet.address = val;
+      try {
+        if (val.startsWith('doom1')) {
+          currentWallet.address = val;
+          currentWallet.privateKey = '';
+        } else {
+          const wallet = DoomsdayCrypto.getWalletFromKey(val);
+          currentWallet.address = wallet.address;
+          currentWallet.privateKey = wallet.private_key;
+        }
+        localStorage.setItem('doomsday_web_wallet', JSON.stringify(currentWallet));
+        renderActiveWallet();
+        showAlert("✓ Wallet imported locally in browser!");
+      } catch (e) {
+        showAlert("Invalid private key: " + e.message, true);
       }
-      localStorage.setItem('doomsday_web_wallet', JSON.stringify(currentWallet));
-      renderActiveWallet();
-      showAlert("✓ Wallet imported successfully!");
     });
 
-    // SEND TRANSACTION
+    // SEND TRANSACTION (100% CLIENT-SIDE SIGNING)
     document.getElementById('btn-submit-tx').addEventListener('click', async () => {
       const toAddr = document.getElementById('send-recipient').value.trim();
       const amount = parseFloat(document.getElementById('send-amount').value);
@@ -666,36 +669,51 @@
         return;
       }
       if (!currentWallet.privateKey) {
-        showAlert("Cannot send: private key is not loaded for this address. Please import using your Private Key (WIF).", true);
+        showAlert("Cannot send: private key is not loaded in memory for this address. Please import using your 64-char Private Key hex.", true);
         return;
       }
 
       const btn = document.getElementById('btn-submit-tx');
-      btn.innerText = "Signing & Gossiping to Network...";
+      btn.innerText = "Fetching UTXOs & Signing Locally...";
       btn.disabled = true;
 
       try {
-        const payload = {
-          from_address: currentWallet.address,
-          private_key_wif: currentWallet.privateKey,
-          to_address: toAddr,
-          amount_doom: amount,
-          fee_doom: 0.001
-        };
-        const res = await fetch('/rpc/exchange/withdraw', {
+        // 1. Fetch confirmed unspent transaction outputs (UTXOs)
+        const utxoRes = await fetch(`/wallet/${currentWallet.address}/utxos`);
+        if (!utxoRes.ok) {
+          showAlert("Failed to query UTXOs from node ledger", true);
+          return;
+        }
+        const utxoData = await utxoRes.json();
+        const utxos = utxoData.utxos || [];
+
+        // 2. Sign transaction locally in browser with secp256k1 (private key never leaves device)
+        btn.innerText = "Signing inputs (secp256k1)...";
+        const signedTx = DoomsdayCrypto.signTransaction({
+          fromAddress: currentWallet.address,
+          privateKeyHex: currentWallet.privateKey,
+          toAddress: toAddr,
+          amountDoom: amount,
+          feeDoom: 0.001,
+          utxos: utxos
+        });
+
+        // 3. Broadcast ONLY the pre-signed transaction object to mempool
+        btn.innerText = "Broadcasting to mempool...";
+        const res = await fetch('/tx/broadcast', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
+          body: JSON.stringify({ transaction: signedTx })
         });
 
         const data = await res.json();
         if (res.ok) {
-          showAlert(`✓ Transaction Broadcast! TXID: ${data.txid}`);
+          showAlert(`✓ Transaction Signed Locally & Broadcast! TXID: ${data.txid}`);
           document.getElementById('send-recipient').value = '';
           document.getElementById('send-amount').value = '';
           setTimeout(refreshBalance, 2000);
         } else {
-          showAlert(`Transaction failed: ${data.detail || 'Node rejected'}`, true);
+          showAlert(`Transaction rejected: ${data.detail || 'Node rejected'}`, true);
         }
       } catch (e) {
         showAlert(`Error: ${e.message}`, true);

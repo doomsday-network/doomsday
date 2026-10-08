@@ -4,14 +4,26 @@ from fastapi.testclient import TestClient
 from node.server import app, chain
 import node.server as server_mod
 
+TEST_KEY = "super-secret-test-key"
 
 @pytest.fixture
 def client():
-    return TestClient(app)
+    # Configure exchange key for tests
+    server_mod.EXCHANGE_API_KEY = TEST_KEY
+    yield TestClient(app)
+    server_mod.EXCHANGE_API_KEY = ""
+
+
+def test_exchange_disabled_by_default():
+    server_mod.EXCHANGE_API_KEY = ""
+    c = TestClient(app)
+    res = c.get("/rpc/exchange/status")
+    assert res.status_code == 403
+    assert "Exchange RPC daemon is disabled" in res.json()["detail"]
 
 
 def test_exchange_status(client):
-    res = client.get("/rpc/exchange/status")
+    res = client.get("/rpc/exchange/status", headers={"X-API-KEY": TEST_KEY})
     assert res.status_code == 200
     data = res.json()
     assert data["status"] == "online"
@@ -22,7 +34,7 @@ def test_exchange_status(client):
 
 
 def test_exchange_create_address(client):
-    res = client.post("/rpc/exchange/create_address")
+    res = client.post("/rpc/exchange/create_address", headers={"X-API-KEY": TEST_KEY})
     assert res.status_code == 200
     data = res.json()
     assert data["address"].startswith("doom1")
@@ -31,11 +43,10 @@ def test_exchange_create_address(client):
 
 
 def test_exchange_get_address(client):
-    # Test with genesis miner address
     gen_block = chain.blocks[0]
     gen_addr = gen_block.header.miner_address
 
-    res = client.get(f"/rpc/exchange/address/{gen_addr}")
+    res = client.get(f"/rpc/exchange/address/{gen_addr}", headers={"X-API-KEY": TEST_KEY})
     assert res.status_code == 200
     data = res.json()
     assert data["address"] == gen_addr
@@ -46,7 +57,7 @@ def test_exchange_get_address(client):
 
 
 def test_exchange_get_block(client):
-    res = client.get("/rpc/exchange/block/0")
+    res = client.get("/rpc/exchange/block/0", headers={"X-API-KEY": TEST_KEY})
     assert res.status_code == 200
     data = res.json()
     assert data["height"] == 0
@@ -59,7 +70,7 @@ def test_exchange_get_block(client):
 
 def test_exchange_get_tx(client):
     gen_tx = chain.blocks[0].transactions[0]
-    res = client.get(f"/rpc/exchange/tx/{gen_tx.txid}")
+    res = client.get(f"/rpc/exchange/tx/{gen_tx.txid}", headers={"X-API-KEY": TEST_KEY})
     assert res.status_code == 200
     data = res.json()
     assert data["txid"] == gen_tx.txid
@@ -70,22 +81,17 @@ def test_exchange_get_tx(client):
 
 
 def test_exchange_auth_enforcement(client):
-    # Temporarily enable API key
-    server_mod.EXCHANGE_API_KEY = "super-secret-test-key"
-    try:
-        # Request without key should fail 401
-        res = client.get("/rpc/exchange/status")
-        assert res.status_code == 401
+    # Request without key should fail 401
+    res = client.get("/rpc/exchange/status")
+    assert res.status_code == 401
 
-        # Request with wrong key should fail 401
-        res = client.get("/rpc/exchange/status", headers={"X-API-KEY": "wrong-key"})
-        assert res.status_code == 401
+    # Request with wrong key should fail 401
+    res = client.get("/rpc/exchange/status", headers={"X-API-KEY": "wrong-key"})
+    assert res.status_code == 401
 
-        # Request with correct key should succeed
-        res = client.get("/rpc/exchange/status", headers={"X-API-KEY": "super-secret-test-key"})
-        assert res.status_code == 200
-    finally:
-        server_mod.EXCHANGE_API_KEY = ""
+    # Request with correct key should succeed
+    res = client.get("/rpc/exchange/status", headers={"X-API-KEY": TEST_KEY})
+    assert res.status_code == 200
 
 
 def test_exchange_withdraw_insufficient_funds(client):
@@ -101,6 +107,27 @@ def test_exchange_withdraw_insufficient_funds(client):
         "amount_doom": 10.0,
         "fee_doom": 0.001
     }
-    res = client.post("/rpc/exchange/withdraw", json=payload)
+    res = client.post("/rpc/exchange/withdraw", json=payload, headers={"X-API-KEY": TEST_KEY})
     assert res.status_code == 400
     assert "Insufficient balance" in res.json()["detail"]
+
+
+def test_public_utxo_and_broadcast_endpoints(client):
+    gen_block = chain.blocks[0]
+    gen_addr = gen_block.header.miner_address
+
+    # Public UTXO endpoint without authentication
+    res = client.get(f"/wallet/{gen_addr}/utxos")
+    assert res.status_code == 200
+    data = res.json()
+    assert "utxos" in data
+    assert "balance_doom" in data
+
+    # Plaintext tx/send must be permanently blocked with 403
+    res_send = client.post("/tx/send", json={"fake": "data"})
+    assert res_send.status_code == 403
+    assert "permanently disabled" in res_send.json()["detail"]
+
+    # Server wallet generation must return 410 Gone
+    res_new = client.post("/wallet/new")
+    assert res_new.status_code == 410

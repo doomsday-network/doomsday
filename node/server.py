@@ -16,6 +16,16 @@ from core.transaction import COIN, Transaction, TxInput, TxOutput
 
 app = FastAPI(title="Doomsday Network Node", version="1.0.0", docs_url="/api/docs", redoc_url=None)
 
+@app.middleware("http")
+async def add_security_headers(request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    return response
+
 # Initialize Ledger
 chain = Blockchain()
 
@@ -108,6 +118,10 @@ class ExchangeWithdrawRequest(BaseModel):
     fee_doom: float = 0.001
 
 
+class BroadcastTxRequest(BaseModel):
+    transaction: Dict[str, Any]
+
+
 class ExchangeRawTxRequest(BaseModel):
     transaction: Dict[str, Any]
 
@@ -116,8 +130,13 @@ EXCHANGE_API_KEY = os.environ.get("DOOMSDAY_EXCHANGE_KEY", "").strip()
 
 
 def verify_exchange_auth(x_api_key: Optional[str] = Header(None)):
-    """Enforce X-API-KEY header if DOOMSDAY_EXCHANGE_KEY is configured."""
-    if EXCHANGE_API_KEY and x_api_key != EXCHANGE_API_KEY:
+    """Enforce X-API-KEY header. If DOOMSDAY_EXCHANGE_KEY is unset, all exchange RPCs are disabled."""
+    if not EXCHANGE_API_KEY:
+        raise HTTPException(
+            status_code=403,
+            detail="Exchange RPC daemon is disabled on this node. Set DOOMSDAY_EXCHANGE_KEY to enable."
+        )
+    if x_api_key != EXCHANGE_API_KEY:
         raise HTTPException(
             status_code=401,
             detail="Unauthorized: Invalid or missing X-API-KEY header for exchange RPC"
@@ -443,63 +462,77 @@ def get_blocks(limit: int = 20):
 @app.get("/wallet/{address}")
 def get_wallet(address: str):
     sparks = chain.get_balance(address)
+    utxos = chain.get_address_utxos(address)
     return {
         "address": address,
         "balance_sparks": sparks,
-        "balance_doom": sparks / COIN
+        "balance_doom": sparks / COIN,
+        "utxo_count": len(utxos)
+    }
+
+
+@app.get("/wallet/{address}/utxos")
+def get_wallet_utxos(address: str):
+    """
+    Public read-only endpoint returning unspent transaction outputs (UTXOs).
+    Enables clients to build and sign transactions 100% locally.
+    """
+    sparks = chain.get_balance(address)
+    utxos = chain.get_address_utxos(address)
+    return {
+        "address": address,
+        "balance_doom": sparks / COIN,
+        "balance_sparks": sparks,
+        "utxo_count": len(utxos),
+        "utxos": utxos
+    }
+
+
+@app.post("/tx/broadcast")
+async def broadcast_transaction(req: BroadcastTxRequest):
+    """
+    Mempool broadcast for client-side pre-signed ECDSA transactions.
+    Sovereign non-custodial design: private keys are never transmitted to this node.
+    """
+    try:
+        tx = Transaction.from_dict(req.transaction)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Malformed transaction structure: {e}")
+
+    ok, reason = chain.add_transaction_to_mempool(tx)
+    if not ok:
+        raise HTTPException(status_code=400, detail=f"Transaction rejected: {reason}")
+
+    await broadcast_event("new_tx", tx.to_dict())
+    asyncio.create_task(p2p.broadcast_tx(tx))
+    return {
+        "status": "broadcasted",
+        "txid": tx.txid,
+        "inputs": len(tx.inputs),
+        "outputs": len(tx.outputs)
     }
 
 
 @app.post("/tx/send")
-async def send_transaction(req: SendTxRequest):
-    from core.crypto import private_key_from_wif, public_key_to_address
-    priv = private_key_from_wif(req.private_key_wif)
-    sender_derived = public_key_to_address(priv.public_key())
-    if sender_derived != req.sender_address:
-        raise HTTPException(status_code=400, detail="Private key does not match sender address")
-
-    amount_sparks = int(req.amount_doom * COIN)
-    avail = chain.get_balance(req.sender_address)
-    if avail < amount_sparks:
-        raise HTTPException(status_code=400, detail=f"Insufficient balance. Available: {avail/COIN} DOOM")
-
-    # Select UTXOs
-    inputs = []
-    accum = 0
-    for outpoint, (rcpt, amt) in chain.utxo_set.items():
-        if rcpt == req.sender_address:
-            txid, vout = outpoint.split(':')
-            inputs.append(TxInput(txid=txid, vout=int(vout)))
-            accum += amt
-            if accum >= amount_sparks:
-                break
-
-    outputs = [TxOutput(recipient=req.recipient_address, amount=amount_sparks)]
-    change = accum - amount_sparks
-    if change > 0:
-        outputs.append(TxOutput(recipient=req.sender_address, amount=change))
-
-    tx = Transaction(inputs=inputs, outputs=outputs)
-    for idx in range(len(inputs)):
-        tx.sign_input(idx, priv)
-
-    ok, reason = chain.add_transaction_to_mempool(tx)
-    if not ok:
-        raise HTTPException(status_code=400, detail=reason)
-
-    await broadcast_event("new_tx", tx.to_dict())
-    asyncio.create_task(p2p.broadcast_tx(tx))
-    return {"txid": tx.txid, "status": "Broadcast to mempool"}
+async def send_transaction_forbidden():
+    """
+    Permanently disabled for user safety. Private keys must never be transmitted over HTTP.
+    """
+    raise HTTPException(
+        status_code=403,
+        detail="Security violation: Server-side signing is permanently disabled. Private keys must never leave your device. Sign transactions locally with client-side secp256k1 and broadcast to /tx/broadcast."
+    )
 
 
 @app.post("/wallet/new")
-def generate_new_wallet():
-    from core.crypto import generate_keypair, private_key_to_wif, public_key_to_address
-    priv, pub = generate_keypair()
-    return {
-        "address": public_key_to_address(pub),
-        "private_key": private_key_to_wif(priv)
-    }
+def generate_new_wallet_deprecated():
+    """
+    Permanently disabled for user safety. Keys must be generated client-side.
+    """
+    raise HTTPException(
+        status_code=410,
+        detail="Security notice: Server-side key generation is deprecated. Generate secp256k1 keypairs client-side in the browser or via the offline CLI."
+    )
 
 
 @app.get("/faucet/info")
@@ -794,8 +827,20 @@ if os.path.exists(web_dir):
     app.mount("/static", StaticFiles(directory=web_dir), name="static")
 
     @app.get("/")
+    @app.head("/")
     def index():
         return FileResponse(os.path.join(web_dir, "index.html"))
+
+    @app.get("/SHA256SUMS.txt")
+    @app.get("/download/SHA256SUMS.txt")
+    def get_checksums():
+        sums_file = os.path.join(web_dir, "SHA256SUMS.txt")
+        if os.path.exists(sums_file):
+            return FileResponse(sums_file, media_type="text/plain")
+        root_sums = os.path.join(os.path.dirname(os.path.dirname(__file__)), "SHA256SUMS.txt")
+        if os.path.exists(root_sums):
+            return FileResponse(root_sums, media_type="text/plain")
+        raise HTTPException(status_code=404, detail="SHA256SUMS.txt not found")
 
     @app.get("/docs")
     @app.get("/whitepaper")

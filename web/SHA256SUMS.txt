@@ -1,0 +1,5 @@
+# DOOMSDAY NETWORK OFFICIAL RELEASE CHECKSUMS (SHA-256)
+# Verify with: sha256sum -c SHA256SUMS.txt (Linux/macOS)
+# Or: Get-FileHash -Algorithm SHA256 <file> (Windows PowerShell)
+
+e629be9a812d7c25395dfa56d6f784ea5ba01fe05c0dff1d1579a50241d1205e  Doomsday-v1.0.0-Windows-x64.zip

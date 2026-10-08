@@ -99,7 +99,8 @@ Where:
   * `GET /status` — Network metrics, aggregate hashrate, active worker count, supply.
   * `GET /job` — Mining template generator for remote rigs.
   * `POST /submit` — Proof-of-work solution candidate submission.
-  * `POST /tx/send` — Signed raw transaction mempool broadcast.
+  * `POST /tx/broadcast` — Client-side pre-signed raw transaction mempool broadcast.
+  * `GET /wallet/{address}/utxos` — Confirmed unspent transaction output inspector for client-side signing.
   * `WS /ws` — Real-time event stream for blocks, transactions, and difficulty.
 
 ### 6.2 Client Ecosystem

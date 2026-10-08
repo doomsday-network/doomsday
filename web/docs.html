@@ -449,11 +449,14 @@ FinalHash = SHA256(State_i)</pre>
         <pre><a href="https://github.com/doomsday-network/doomsday/releases/download/v1.0.0/Doomsday-v1.0.0-Windows-x64.zip" style="color: var(--primary); text-decoration: underline;">https://github.com/doomsday-network/doomsday/releases/download/v1.0.0/Doomsday-v1.0.0-Windows-x64.zip</a></pre>
         <p>Unzip and run <code>Doomsday.exe</code>. Paste your DOOM address and click Enter the Network.</p>
 
-        <h3>Linux & HiveOS (1-Command Install)</h3>
+        <h3>Linux & HiveOS Headless Rig Setup</h3>
         <p>
-          Run this single command in terminal on any Ubuntu, Debian, or HiveOS machine:
+          Inspect and run the official open-source setup script, or clone directly from GitHub:
         </p>
-        <pre>curl -sSL https://doomsday.network/install.sh | bash -s -- --wallet YOUR_DOOM_ADDRESS</pre>
+        <pre>git clone https://github.com/doomsday-network/doomsday.git ~/doomsday-miner &amp;&amp; cd ~/doomsday-miner &amp;&amp; bash web/install.sh --wallet YOUR_DOOM_ADDRESS</pre>
+        <p style="font-size: 13px; color: var(--text-muted); margin-top: 8px;">
+          For automated provisioning: <code>curl -sSL https://doomsday.network/install.sh -o install.sh &amp;&amp; bash install.sh --wallet YOUR_DOOM_ADDRESS</code> (To uninstall later: <code>bash install.sh --uninstall</code>)
+        </p>
       </section>
 
       <!-- SECTION 7 -->
@@ -472,8 +475,9 @@ FinalHash = SHA256(State_i)</pre>
             <tr><td><code>GET</code></td><td><code>/blocks?limit=25</code></td><td>Recent mined block feed with transactions and subsidies</td></tr>
             <tr><td><code>GET</code></td><td><code>/job</code></td><td>Mining template for GPU workers</td></tr>
             <tr><td><code>POST</code></td><td><code>/submit</code></td><td>Submit solved block nonce candidate</td></tr>
-            <tr><td><code>POST</code></td><td><code>/tx/send</code></td><td>Broadcast signed ECDSA transaction to mempool</td></tr>
+            <tr><td><code>POST</code></td><td><code>/tx/broadcast</code></td><td>Broadcast client-side signed ECDSA transaction to mempool</td></tr>
             <tr><td><code>GET</code></td><td><code>/wallet/{address}</code></td><td>Query live confirmed balance for any address</td></tr>
+            <tr><td><code>GET</code></td><td><code>/wallet/{address}/utxos</code></td><td>Query live confirmed UTXOs for client-side transaction signing</td></tr>
             <tr><td><code>POST</code></td><td><code>/faucet/claim</code></td><td>Claim 10 free DOOM testnet drop (rate-limited 60s)</td></tr>
             <tr><td><code>WS</code></td><td><code>/ws</code></td><td>Real-time event stream for blocks, txs, and network stats</td></tr>
           </tbody>

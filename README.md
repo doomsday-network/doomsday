@@ -3,6 +3,7 @@
 > *"Doomsday Clock: 90 seconds to midnight. When the world goes dark, the silent silicon awakens."*
 
 [![Release](https://img.shields.io/github/v/release/doomsday-network/doomsday?color=orange&label=Desktop%20App%20v1.0.0)](https://github.com/doomsday-network/doomsday/releases/latest)
+[![Security Policy](https://img.shields.io/badge/Security-Non--Custodial%20Audited-brightgreen.svg)](SECURITY.md)
 [![Platform: Windows x64](https://img.shields.io/badge/Platform-Windows%20x64-blue.svg)](https://github.com/doomsday-network/doomsday/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Consensus](https://img.shields.io/badge/Consensus-Proof--of--Idle--Work-red.svg)](#)
@@ -13,11 +14,13 @@
 **Doomsday (`DOOM`)** is a sovereign Layer-1 Proof-of-Work cryptocurrency engineered for consumer GPUs. It activates the dormant computational capacity of gaming and creator PCs when they sit idle, automatically standing down the instant you use your computer.
 
 * **100% Fair Launch:** No pre-mine. No ICO. No VC allocations. No founder tax. Block #0 mined live.
+* **100% Sovereign & Non-Custodial:** Secp256k1 keys are generated strictly on the client. Transactions are signed locally in the browser or wallet CLI; private keys never touch nodes or network wire.
 * **Native Zero-Lag Idle Sentinel:** Mines in the background when your PC is idle; yields GPU resources immediately (< 50ms) on mouse movement, keystroke, or full-screen gaming.
 * **Bare-Metal GPU Solver:** Uses the NVIDIA driver's native JIT compiler (`nvcuda.dll`). No Visual Studio or 10GB CUDA SDKs needed. Double-click and mine.
 * **Smart Power & OLED Protection:** Prevents Windows from suspending the PC while mining, while explicitly allowing displays to sleep normally on your Windows timer.
 * **ASERT Per-Block Difficulty:** Smooth target retargeting every 20 seconds. Difficulty smoothly adapts as machines go to sleep or awaken.
 * **Built-in Live Explorer:** Every node ships with an integrated real-time web dashboard showing the Doomsday Clock, live blocks, difficulty gauge, and cluster hashrates.
+* **Security & Verification:** See [SECURITY.md](SECURITY.md) for full threat model, cryptographic architecture, and [SHA256SUMS.txt](SHA256SUMS.txt).
 
 ---
 

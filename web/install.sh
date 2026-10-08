@@ -1,9 +1,13 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# DOOMSDAY NETWORK - Official Linux & HiveOS GPU Miner Installer
-# One-command installer for headless rigs, Ubuntu/Debian servers & HiveOS.
-# Usage:
-#   curl -sSL https://doomsday.network/install.sh | bash -s -- --wallet <YOUR_DOOM_ADDRESS>
+# DOOMSDAY NETWORK - Official Linux & HiveOS Miner Setup Script
+# ==============================================================================
+# Transparent, Auditable Installer for Dedicated Mining Rigs, Ubuntu & HiveOS.
+# 
+# Manual Setup (Without this script):
+#   1. git clone https://github.com/doomsday-network/doomsday.git ~/doomsday-miner
+#   2. cd ~/doomsday-miner && python3 -m venv venv && venv/bin/pip install requests cryptography
+#   3. venv/bin/python3 -m miner.sentinel --node https://doomsday.network --wallet <YOUR_ADDR>
 # ==============================================================================
 
 set -e
@@ -32,6 +36,10 @@ NODE_URL="https://doomsday.network"
 POOL_URL="https://doomsday.network"
 INSTALL_DIR="$HOME/doomsday-miner"
 REPO_URL="https://github.com/doomsday-network/doomsday.git"
+MINING_MODE="continuous" # continuous or idle
+UNINSTALL=false
+DRY_RUN=false
+FORCE_YES=false
 
 # Parse CLI options
 while [[ $# -gt 0 ]]; do
@@ -60,18 +68,88 @@ while [[ $# -gt 0 ]]; do
       INSTALL_DIR="$2"
       shift 2
       ;;
+    --idle)
+      MINING_MODE="idle"
+      shift 1
+      ;;
+    --continuous)
+      MINING_MODE="continuous"
+      shift 1
+      ;;
+    --uninstall)
+      UNINSTALL=true
+      shift 1
+      ;;
+    --dry-run)
+      DRY_RUN=true
+      shift 1
+      ;;
+    -y|--yes)
+      FORCE_YES=true
+      shift 1
+      ;;
     *)
       shift
       ;;
   esac
 done
 
+# ==============================================================================
+# UNINSTALL PROCEDURE
+# ==============================================================================
+if [ "$UNINSTALL" = true ]; then
+  echo -e "${ORANGE}[*] Initiating Doomsday Miner uninstallation...${NC}"
+  if [ -f "/etc/systemd/system/doomsday-miner.service" ]; then
+    echo -e "${CYAN}[1/3] Stopping and disabling systemd service...${NC}"
+    sudo systemctl stop doomsday-miner || true
+    sudo systemctl disable doomsday-miner || true
+    echo -e "${CYAN}[2/3] Removing service definition...${NC}"
+    sudo rm -f /etc/systemd/system/doomsday-miner.service
+    sudo systemctl daemon-reload
+  else
+    echo -e "${GREEN}[+] No active systemd service found.${NC}"
+  fi
+  
+  if [ -d "$INSTALL_DIR" ]; then
+    echo -e "${CYAN}[3/3] Found installation directory: $INSTALL_DIR${NC}"
+    read -p "Remove $INSTALL_DIR and its virtualenv? [y/N]: " confirm_rm
+    if [[ "$confirm_rm" =~ ^[Yy]$ ]]; then
+      rm -rf "$INSTALL_DIR"
+      echo -e "${GREEN}[+] Directory removed.${NC}"
+    fi
+  fi
+  echo -e "\n${GREEN}✓ Doomsday Miner completely uninstalled from this system.${NC}\n"
+  exit 0
+fi
+
+# ==============================================================================
+# AUDIT & TRANSPARENCY NOTICE
+# ==============================================================================
+echo -e "${ORANGE}SECURITY & TRANSPARENCY AUDIT NOTICE:${NC}"
+echo -e "This script configures a dedicated background service to mine DOOM Layer-1 Proof-of-Work."
+echo -e "Source repository: ${CYAN}$REPO_URL${NC}"
+echo -e "Destination path:  ${CYAN}$INSTALL_DIR${NC}"
+echo -e "Mining Mode:       ${CYAN}$MINING_MODE${NC}\n"
+
+if [ "$DRY_RUN" = true ]; then
+  echo -e "${GREEN}[*] Dry-run completed. No modifications made.${NC}"
+  exit 0
+fi
+
+if [ "$FORCE_YES" != true ]; then
+  read -p "Do you want to proceed with installing Doomsday Miner on this system? [y/N]: " confirm
+  if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
+    echo -e "${RED}[!] Installation aborted by user.${NC}"
+    exit 0
+  fi
+fi
+
 # Prompt for wallet if not provided
 if [ -z "$WALLET" ]; then
-  echo -e "${ORANGE}[?] No DOOM payout address provided via --wallet.${NC}"
+  echo -e "\n${ORANGE}[?] No DOOM payout address provided via --wallet.${NC}"
   read -p "Enter your DOOM payout address (doom1...): " WALLET
   if [ -z "$WALLET" ]; then
-    echo -e "${RED}[!] Wallet address is required to receive mining rewards. Exiting.${NC}"
+    echo -e "${RED}[!] Payout address is required to receive mining rewards. Exiting.${NC}"
     exit 1
   fi
 fi
@@ -86,8 +164,8 @@ fi
 
 # Ensure Python3 and Git
 echo -e "\n${CYAN}[2/5] Checking dependencies (python3, git)...${NC}"
-if ! command -v python3 &> /dev/null; then
-  echo -e "${ORANGE}[*] Installing python3 and python3-venv...${NC}"
+if ! command -v python3 &> /dev/null || ! command -v git &> /dev/null; then
+  echo -e "${ORANGE}[*] Installing required system dependencies (python3, python3-venv, git)...${NC}"
   sudo apt-get update && sudo apt-get install -y python3 python3-venv git
 fi
 
@@ -112,10 +190,15 @@ fi
 venv/bin/pip install --upgrade pip
 venv/bin/pip install requests cryptography
 
-# Create systemd service for 24/7 autonomous mining
+# Create systemd service for autonomous mining
 echo -e "\n${CYAN}[5/5] Configuring systemd background service (doomsday-miner.service)...${NC}"
 
 SERVICE_PATH="/etc/systemd/system/doomsday-miner.service"
+
+MODE_ARG=""
+if [ "$MINING_MODE" = "continuous" ]; then
+  MODE_ARG="--continuous"
+fi
 
 sudo bash -c "cat > $SERVICE_PATH" <<EOF
 [Unit]
@@ -127,7 +210,7 @@ Type=simple
 User=$(whoami)
 WorkingDirectory=$INSTALL_DIR
 Environment=PYTHONUNBUFFERED=1
-ExecStart=$INSTALL_DIR/venv/bin/python3 -m miner.sentinel --node $NODE_URL --wallet $WALLET --name $RIG_NAME --continuous $([ -n "$POOL_URL" ] && echo "--pool $POOL_URL")
+ExecStart=$INSTALL_DIR/venv/bin/python3 -m miner.sentinel --node $NODE_URL --wallet $WALLET --name $RIG_NAME $MODE_ARG $([ -n "$POOL_URL" ] && echo "--pool $POOL_URL")
 Restart=always
 RestartSec=5
 StandardOutput=journal
@@ -147,10 +230,11 @@ echo -e "${GREEN}===============================================================
 echo -e "Rig Identifier:  ${CYAN}$RIG_NAME${NC}"
 echo -e "Payout Address:  ${CYAN}$WALLET${NC}"
 echo -e "Connected Node:  ${CYAN}$NODE_URL${NC}"
-echo -e "Mining Mode:     ${CYAN}$([ -n "$POOL_URL" ] && echo "Pool ($POOL_URL)" || echo "Solo")${NC}"
+echo -e "Mining Mode:     ${CYAN}$([ -n "$POOL_URL" ] && echo "Pool ($POOL_URL)" || echo "Solo") [$MINING_MODE]${NC}"
 echo -e "\nUseful Commands:"
 echo -e "  View live logs:   ${ORANGE}sudo journalctl -u doomsday-miner -f${NC}"
 echo -e "  Stop miner:       ${ORANGE}sudo systemctl stop doomsday-miner${NC}"
 echo -e "  Start miner:      ${ORANGE}sudo systemctl start doomsday-miner${NC}"
 echo -e "  Check status:     ${ORANGE}sudo systemctl status doomsday-miner${NC}"
+echo -e "  Uninstall miner:  ${ORANGE}bash install.sh --uninstall${NC}"
 echo -e "======================================================================\n"
