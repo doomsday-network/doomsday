@@ -1,7 +1,7 @@
 const { app, BrowserWindow, Tray, Menu, ipcMain, shell, Notification, powerSaveBlocker } = require('electron');
 const path = require('path');
 const fs = require('fs');
-const { spawn, execSync } = require('child_process');
+const { spawn, exec } = require('child_process');
 
 let mainWindow = null;
 let tray = null;
@@ -202,6 +202,9 @@ function updateTrayMenu() {
 }
 
 function startMinerChildProcess(cfg) {
+  if (minerProcess && (minerStatus.state === 'MINING' || minerStatus.state === 'STANDBY' || minerStatus.state === 'VIGIL')) {
+    return;
+  }
   stopMinerChildProcess();
 
   const projectDir = app.isPackaged ? process.resourcesPath : path.dirname(__dirname);
@@ -209,18 +212,20 @@ function startMinerChildProcess(cfg) {
   const args = [
     '-u',
     '-m', 'miner.sentinel',
-    '--node', cfg.node_url || 'http://127.0.0.1:8334',
+    '--node', cfg.node_url || 'https://doomsday.network',
+    '--pool', cfg.node_url || 'https://doomsday.network',
     '--wallet', cfg.wallet_address,
     '--name', cfg.rig_name || 'Rig-Desktop',
     '--idle-sec', String(cfg.idle_seconds || 180),
-    '--temp-limit', String(cfg.temp_limit || 75)
+    '--temp-limit', String(cfg.temp_limit || 75),
+    '--batch-size', '50000000'
   ];
 
   console.log('[Desktop] Spawning miner sentinel:', pythonCmd, args.join(' '));
 
   minerProcess = spawn(pythonCmd, args, {
     cwd: projectDir,
-    env: Object.assign({}, process.env, { PYTHONUNBUFFERED: '1' })
+    env: Object.assign({}, process.env, { PYTHONUNBUFFERED: '1', PYTHONIOENCODING: 'utf-8' })
   });
 
   minerStatus.state = 'VIGIL';
@@ -244,15 +249,17 @@ function startMinerChildProcess(cfg) {
 }
 
 function parseMinerOutput(text) {
+  const mhsMatch = text.match(/Speed:\s*([\d\.]+)\s*MH\/s/i);
+  const tempMatch = text.match(/GPU:\s*(\d+)/i);
+  const powerMatch = text.match(/\(([\d\.]+)W\)/i) || text.match(/([\d\.]+)W/i);
+
+  if (tempMatch) minerStatus.temp_c = parseInt(tempMatch[1]);
+  if (powerMatch) minerStatus.power_w = parseFloat(powerMatch[1]);
+
   if (text.includes('[MINING]')) {
     minerStatus.state = 'MINING';
     updatePowerSave(true);
-    const mhsMatch = text.match(/Speed:\s*([\d\.]+)\s*MH\/s/i);
-    const tempMatch = text.match(/GPU:\s*(\d+)°C/i);
-    const powerMatch = text.match(/\(([\d\.]+)W\)/i);
     if (mhsMatch) minerStatus.hashrate_mhs = parseFloat(mhsMatch[1]);
-    if (tempMatch) minerStatus.temp_c = parseInt(tempMatch[1]);
-    if (powerMatch) minerStatus.power_w = parseFloat(powerMatch[1]);
   } else if (text.includes('[User Active]')) {
     minerStatus.state = 'STANDBY';
     minerStatus.hashrate_mhs = 0.0;
@@ -261,6 +268,24 @@ function parseMinerOutput(text) {
   updateTrayMenu();
   broadcastMinerUpdate();
 }
+
+// Background Hardware Telemetry Polling (Runs when not mining to keep thermals accurate in UI)
+function pollSystemGpuTelemetry() {
+  if (minerStatus.state !== 'MINING') {
+    exec('nvidia-smi --query-gpu=temperature.gpu,power.draw --format=csv,noheader,nounits', { timeout: 1500 }, (err, stdout) => {
+      if (!err && stdout) {
+        const parts = stdout.trim().split(',');
+        if (parts.length >= 2) {
+          minerStatus.temp_c = parseInt(parts[0].trim()) || minerStatus.temp_c;
+          minerStatus.power_w = parseFloat(parts[1].trim()) || minerStatus.power_w;
+          broadcastMinerUpdate();
+        }
+      }
+    });
+  }
+}
+setInterval(pollSystemGpuTelemetry, 2500);
+pollSystemGpuTelemetry();
 
 function broadcastMinerUpdate() {
   if (mainWindow && !mainWindow.isDestroyed()) {

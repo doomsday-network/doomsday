@@ -43,14 +43,53 @@ def get_user_idle_seconds() -> float:
     return max(0.0, elapsed_ms / 1000.0)
 
 
+_nvml_handle = None
+_nvml_checked = False
+
+
 def get_gpu_telemetry() -> Dict[str, Any]:
-    """Query temperature, power usage, and utilization from nvidia-smi."""
+    """Query temperature, power usage, and utilization with microsecond direct NVML calls."""
+    global _nvml_handle, _nvml_checked
+    if not _nvml_checked:
+        try:
+            dll_name = 'nvml.dll' if os.name == 'nt' else 'libnvidia-ml.so.1'
+            nvml = ctypes.CDLL(dll_name)
+            if nvml.nvmlInit_v2() == 0:
+                h = ctypes.c_void_p()
+                if nvml.nvmlDeviceGetHandleByIndex_v2(0, ctypes.byref(h)) == 0:
+                    _nvml_handle = (nvml, h)
+        except Exception:
+            pass
+        _nvml_checked = True
+
+    if _nvml_handle is not None:
+        try:
+            nvml, h = _nvml_handle
+            temp = ctypes.c_uint()
+            power = ctypes.c_uint()
+            nvml.nvmlDeviceGetTemperature(h, 0, ctypes.byref(temp))
+            nvml.nvmlDeviceGetPowerUsage(h, ctypes.byref(power))
+
+            class nvmlUtil(ctypes.Structure):
+                _fields_ = [('gpu', ctypes.c_uint), ('mem', ctypes.c_uint)]
+
+            u = nvmlUtil()
+            nvml.nvmlDeviceGetUtilizationRates(h, ctypes.byref(u))
+            return {
+                "temp_c": int(temp.value),
+                "power_w": round(power.value / 1000.0, 1),
+                "util_pct": int(u.gpu)
+            }
+        except Exception:
+            pass
+
+    # Fallback to nvidia-smi if NVML C-library fails
     try:
         res = subprocess.run(
             ["nvidia-smi", "--query-gpu=temperature.gpu,power.draw,utilization.gpu", "--format=csv,noheader,nounits"],
             capture_output=True,
             text=True,
-            timeout=1
+            timeout=2
         )
         if res.returncode == 0:
             parts = res.stdout.strip().split(',')
@@ -231,8 +270,8 @@ class IdleSentinelMiner:
             # Check if user is active
             if self.idle_threshold_sec > 0 and idle_sec < self.idle_threshold_sec:
                 set_prevent_sleep(False)  # Allow normal power states while user active
-                if time.time() - last_heartbeat > 3:
-                    sys.stdout.write(f"\r[User Active] Standing by... (Idle: {idle_sec:.1f}s / {self.idle_threshold_sec:.0f}s)   ")
+                if time.time() - last_heartbeat > 2:
+                    sys.stdout.write(f"\r[User Active] Standing by... (Idle: {idle_sec:.1f}s / {self.idle_threshold_sec:.0f}s) | GPU: {gpu_stats['temp_c']}°C ({gpu_stats['power_w']}W)\n")
                     sys.stdout.flush()
                     self.send_telemetry("SUSPENDED (ACTIVE)", 0.0, gpu_stats)
                     last_heartbeat = time.time()
@@ -261,21 +300,32 @@ class IdleSentinelMiner:
             seed_u64 = tuple(current_job["seed_u64"])
             target_high = current_job["target_high"]
 
+            t_batch_start = time.perf_counter()
             found, winning_nonce, hashrate = self.solver.mine_batch(
                 seed_u64=seed_u64,
                 start_nonce=current_nonce,
                 batch_size=self.batch_size,
                 target_high=target_high
             )
+            t_batch_elapsed = max(1e-5, time.perf_counter() - t_batch_start)
+
+            # Auto-scale batch size to maintain continuous 150-250ms GPU saturation
+            if t_batch_elapsed < 0.10 and self.batch_size < 200_000_000:
+                self.batch_size = min(200_000_000, self.batch_size * 2)
+            elif t_batch_elapsed > 0.35 and self.batch_size > 10_000_000:
+                self.batch_size = max(10_000_000, self.batch_size // 2)
 
             current_nonce += self.batch_size
             mhs = hashrate / 1_000_000.0
+
+            # Sample GPU telemetry immediately after active compute so power reflects full load!
+            gpu_stats = get_gpu_telemetry()
 
             sys.stdout.write(
                 f"\r[MINING] Block #{current_job['height']} | "
                 f"Speed: {mhs:.2f} MH/s | "
                 f"GPU: {gpu_stats['temp_c']}°C ({gpu_stats['power_w']}W) | "
-                f"Nonces: {current_nonce:,}   "
+                f"Nonces: {current_nonce:,}\n"
             )
             sys.stdout.flush()
 

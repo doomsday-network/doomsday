@@ -118,6 +118,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     orb.className = 'orb-glow';
 
+    if (status.temp_c > 0) {
+      thermVal.innerText = `${status.temp_c}°C • ${status.power_w ? status.power_w.toFixed(1) : 0}W`;
+    }
+
     if (status.state === 'MINING') {
       orb.classList.add('mining');
       orbIcon.innerText = '⚡';
@@ -126,7 +130,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       subText.innerText = 'SILICON AWAKE';
       subText.style.color = 'var(--primary)';
       speedVal.innerText = `${status.hashrate_mhs.toLocaleString()} MH/s`;
-      thermVal.innerText = `${status.temp_c}°C • ${status.power_w}W`;
     } else if (status.state === 'STANDBY') {
       orb.classList.add('standby');
       orbIcon.innerText = '🛡';
@@ -135,7 +138,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       subText.innerText = 'IDLE SENTINEL';
       subText.style.color = 'var(--accent)';
       speedVal.innerText = '0.0 MH/s';
-      thermVal.innerText = `${status.temp_c}°C • ${status.power_w}W`;
     } else if (status.state === 'PAUSED') {
       orb.classList.add('paused');
       orbIcon.innerText = '⏸';
@@ -151,6 +153,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       stateText.style.color = 'var(--text-muted)';
       subText.innerText = 'READY';
       subText.style.color = 'var(--text-muted)';
+      speedVal.innerText = '0.0 MH/s';
     }
   });
 
