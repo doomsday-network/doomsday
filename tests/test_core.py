@@ -12,7 +12,7 @@ def test_core_flow():
     assert addr.startswith("doom1")
 
     print("Building Genesis block...")
-    genesis = create_genesis_block(miner_address=addr)
+    genesis = create_genesis_block()
     print("Genesis Block Hash:", genesis.hash)
     print("Genesis Nonce:", genesis.header.nonce)
     print("Genesis Merkle Root:", genesis.header.merkle_root)

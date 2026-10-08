@@ -1,0 +1,19 @@
+{
+  "name": "bridge",
+  "version": "1.0.0",
+  "description": "Wrapped DOOM (`wDOOM`) is an ERC-20 token deployed on **Base** (Coinbase's Ethereum Layer-2) that is backed 1:1 by native Proof-of-Idle-Work DOOM coins held in the Doomsday Network reserve vault.",
+  "main": "compile.js",
+  "scripts": {
+    "compile": "node compile.js",
+    "deploy:sepolia": "node deploy.js",
+    "deploy:mainnet": "node deploy.js --mainnet"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "ethers": "^6.17.0",
+    "solc": "^0.8.20"
+  }
+}

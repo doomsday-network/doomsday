@@ -125,12 +125,19 @@ class Transaction:
         return tx
 
 
-def create_coinbase_tx(recipient: str, amount_sparks: int, block_height: int, message: str = "") -> Transaction:
+def create_coinbase_tx(
+    recipient: str,
+    amount_sparks: int,
+    block_height: int,
+    message: str = "",
+    timestamp: Optional[int] = None
+) -> Transaction:
     """Create the subsidy transaction rewarding the miner."""
     extra = f"Height:{block_height} | {message}".strip(" | ")
     tx = Transaction(
         inputs=[TxInput(txid="0" * 64, vout=block_height, signature="", pubkey_hex="")],
         outputs=[TxOutput(recipient=recipient, amount=amount_sparks)],
+        timestamp=timestamp,
         is_coinbase=True,
         extra_data=extra
     )

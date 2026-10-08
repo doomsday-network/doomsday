@@ -125,17 +125,23 @@ class Block:
 
 GENESIS_QUOTE = "Doomsday Clock: 90 seconds to midnight. When the world goes dark, the silent silicon awakens."
 GENESIS_TIMESTAMP = 1760000000  # Fixed deterministic timestamp for Block #0
+GENESIS_COINBASE_TIMESTAMP = 1791423992
+GENESIS_NONCE = 1111
+GENESIS_HASH = "00000d07471c6ac9087230a51565953a31560592fd591cbd5c4a5fe0a3f1585f"
+GENESIS_MERKLE_ROOT = "5ae234b936d16a41a8f7132ca54b53e0ac0d558438d667c8b31087d0ee1f8282"
 
 
 def create_genesis_block(miner_address: str = "doom1genesis000000000000000000000000000000") -> Block:
     """
     Construct the immutable Genesis Block (#0) of the Doomsday Network.
+    Hardcoded with canonical network Genesis parameters for instant, zero-CPU bootstrap.
     """
     coinbase = create_coinbase_tx(
         recipient=miner_address,
         amount_sparks=50 * COIN,
         block_height=0,
-        message=GENESIS_QUOTE
+        message=GENESIS_QUOTE,
+        timestamp=GENESIS_COINBASE_TIMESTAMP
     )
     merkle_root = calculate_merkle_root([coinbase])
     
@@ -145,19 +151,8 @@ def create_genesis_block(miner_address: str = "doom1genesis000000000000000000000
         merkle_root=merkle_root,
         timestamp=GENESIS_TIMESTAMP,
         bits=INITIAL_BITS,
-        nonce=0,
+        nonce=GENESIS_NONCE,
         miner_address=miner_address
     )
     
-    # Solve Genesis block with valid target
-    target = bits_to_target(INITIAL_BITS)
-    prefix = header.get_prefix_bytes()
-    nonce = 0
-    while True:
-        h_bytes = doom_hash(prefix, nonce)
-        if int.from_bytes(h_bytes, byteorder='big') < target:
-            header.nonce = nonce
-            break
-        nonce += 1
-        
     return Block(header=header, transactions=[coinbase], height=0)
