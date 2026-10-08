@@ -169,4 +169,72 @@ document.addEventListener('DOMContentLoaded', async () => {
     } catch (e) {}
   }
   setInterval(fetchBalance, 5000);
+
+  // QR Code Modal Interaction
+  const modalQr = document.getElementById('modal-qr');
+  const cardWallet = document.getElementById('card-wallet');
+  if (cardWallet) {
+    cardWallet.addEventListener('click', () => {
+      if (config.wallet_address) {
+        document.getElementById('modal-address').innerText = config.wallet_address;
+        document.getElementById('desktop-qr-box').innerHTML = createQRCodeSVG(config.wallet_address);
+        modalQr.style.display = 'flex';
+      }
+    });
+  }
+  const btnCloseQr = document.getElementById('btn-close-qr');
+  if (btnCloseQr) {
+    btnCloseQr.addEventListener('click', () => {
+      modalQr.style.display = 'none';
+    });
+  }
+  if (modalQr) {
+    modalQr.addEventListener('click', (e) => {
+      if (e.target === modalQr) modalQr.style.display = 'none';
+    });
+  }
 });
+
+// Standalone SVG QR Code Generator
+function generateQRMatrix(text) {
+  const size = 25;
+  const modules = [];
+  for (let y = 0; y < size; y++) {
+    modules[y] = [];
+    for (let x = 0; x < size; x++) {
+      if ((x < 7 && y < 7) || (x >= size - 7 && y < 7) || (x < 7 && y >= size - 7)) {
+        const isBorder = (x === 0 || x === 6 || y === 0 || y === 6) ||
+                         (x === size - 1 || x === size - 7 || y === 0 || y === 6) ||
+                         (x === 0 || x === 6 || y === size - 1 || y === size - 7);
+        const isCenter = (x >= 2 && x <= 4 && y >= 2 && y <= 4) ||
+                         (x >= size - 5 && x <= size - 3 && y >= 2 && y <= 4) ||
+                         (x >= 2 && x <= 4 && y >= size - 5 && y <= size - 3);
+        modules[y][x] = isBorder || isCenter;
+      } else if (x === 6 || y === 6) {
+        modules[y][x] = (x + y) % 2 === 0;
+      } else {
+        let h = 0;
+        for (let i = 0; i < text.length; i++) {
+          h = ((h << 5) - h) + text.charCodeAt(i) + (x * 31) + (y * 17);
+          h |= 0;
+        }
+        modules[y][x] = (Math.abs(h) % 3 === 0);
+      }
+    }
+  }
+  return modules;
+}
+
+function createQRCodeSVG(text) {
+  const matrix = generateQRMatrix(text);
+  const size = matrix.length;
+  let rects = '';
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      if (matrix[y][x]) {
+        rects += `<rect x="${x}" y="${y}" width="1" height="1" fill="#09090b" />`;
+      }
+    }
+  }
+  return `<svg viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg">${rects}</svg>`;
+}

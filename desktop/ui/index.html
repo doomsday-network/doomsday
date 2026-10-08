@@ -121,13 +121,16 @@
       </div>
 
       <!-- WALLET MINI CARD -->
-      <div class="card" style="padding: 14px;">
+      <div class="card" style="padding: 14px; cursor: pointer; transition: all 0.2s;" id="card-wallet" title="Click to view QR Code">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-          <span style="font-size: 11px; font-weight: 700; color: var(--text-muted);">PAYOUT WALLET</span>
+          <span style="font-size: 11px; font-weight: 700; color: var(--text-muted);">PAYOUT WALLET (CLICK FOR QR)</span>
           <span style="font-size: 11px; color: var(--green); font-weight: 700;" id="val-balance">Loading...</span>
         </div>
-        <div style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #fff; word-break: break-all;" id="val-address">
-          doom1...
+        <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+          <div style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #fff; word-break: break-all;" id="val-address">
+            doom1...
+          </div>
+          <span style="font-size: 14px; opacity: 0.8;">📲</span>
         </div>
       </div>
 
@@ -144,6 +147,16 @@
       <div style="margin-top: auto; text-align: center;">
         <a href="#" id="btn-reconfigure" style="font-size: 11px; color: var(--text-muted); text-decoration: none;">⚙ Settings & Reconfigure</a>
       </div>
+    </div>
+  </div>
+
+  <!-- QR CODE MODAL -->
+  <div id="modal-qr" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(6px); z-index: 100; flex-direction: column; align-items: center; justify-content: center; padding: 24px;">
+    <div class="card" style="width: 100%; max-width: 320px; text-align: center; padding: 24px;">
+      <div style="font-family: 'Cinzel', serif; font-size: 16px; font-weight: 900; margin-bottom: 14px; color: #fff;">RECEIVE DOOM</div>
+      <div id="desktop-qr-box" style="background: #fff; padding: 12px; border-radius: 10px; width: 180px; height: 180px; margin: 0 auto 16px auto; display: flex; align-items: center; justify-content: center;"></div>
+      <div id="modal-address" style="font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-muted); word-break: break-all; margin-bottom: 16px;">doom1...</div>
+      <button class="btn btn-secondary" id="btn-close-qr" style="width: 100%; padding: 8px; font-size: 12px;">Close</button>
     </div>
   </div>
 

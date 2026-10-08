@@ -4,7 +4,8 @@ import struct
 import time
 import hashlib
 import glob
-from typing import Optional, Tuple
+import concurrent.futures
+from typing import Optional, Tuple, List
 from core.crypto import doom_hash
 
 CUDA_SOURCE = r"""
@@ -364,3 +365,91 @@ class CUDASolver:
         if hasattr(self, 'ctx') and self.ctx:
             self.cuda.cuCtxDestroy_v2(self.ctx)
             self.ctx = None
+
+    @classmethod
+    def get_device_count(cls) -> int:
+        """Return total number of physical CUDA GPUs available on the system."""
+        try:
+            cuda = ctypes.WinDLL('nvcuda.dll') if os.name == 'nt' else ctypes.CDLL('libcuda.so.1')
+            if cuda.cuInit(0) == 0:
+                count = ctypes.c_int()
+                if cuda.cuDeviceGetCount(ctypes.byref(count)) == 0:
+                    return count.value
+        except Exception:
+            pass
+        return 0
+
+
+class MultiCUDASolver:
+    """
+    Manages multi-GPU mining rigs with parallel worker threads.
+    Distributes nonces concurrently across all target GPUs with zero GIL blocking.
+    """
+    def __init__(self, device_indices: Optional[List[int]] = None):
+        total_devs = CUDASolver.get_device_count()
+        if device_indices is None or len(device_indices) == 0:
+            device_indices = list(range(max(1, total_devs)))
+
+        self.device_indices = device_indices
+        self.solvers: List[CUDASolver] = []
+
+        print(f"Initializing Multi-GPU Mining Matrix ({len(self.device_indices)} GPU(s))...")
+        for dev_idx in self.device_indices:
+            try:
+                s = CUDASolver(device_index=dev_idx)
+                self.solvers.append(s)
+                print(f"  [+] GPU #{dev_idx} Online: {s.device_name}")
+            except Exception as e:
+                print(f"  [!] Failed to initialize GPU #{dev_idx}: {e}")
+
+        if not self.solvers:
+            raise RuntimeError("No CUDA devices could be initialized.")
+
+        self.device_name = " + ".join([s.device_name for s in self.solvers])
+        self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=len(self.solvers))
+
+    def mine_batch(
+        self,
+        seed_u64: Tuple[int, int, int, int],
+        start_nonce: int,
+        batch_size: int,
+        target_high: int
+    ) -> Tuple[bool, int, float]:
+        if len(self.solvers) == 1:
+            return self.solvers[0].mine_batch(seed_u64, start_nonce, batch_size, target_high)
+
+        # Distribute nonces proportionally across GPUs
+        num_solvers = len(self.solvers)
+        per_gpu_batch = (batch_size + num_solvers - 1) // num_solvers
+
+        futures = []
+        for i, s in enumerate(self.solvers):
+            dev_start_nonce = start_nonce + (i * per_gpu_batch)
+            futures.append(
+                self.executor.submit(
+                    s.mine_batch,
+                    seed_u64,
+                    dev_start_nonce,
+                    per_gpu_batch,
+                    target_high
+                )
+            )
+
+        found = False
+        winning_nonce = 0
+        total_hashrate = 0.0
+
+        for f in concurrent.futures.as_completed(futures):
+            dev_found, dev_nonce, dev_rate = f.result()
+            total_hashrate += dev_rate
+            if dev_found and not found:
+                found = True
+                winning_nonce = dev_nonce
+
+        return found, winning_nonce, total_hashrate
+
+    def close(self):
+        for s in self.solvers:
+            s.close()
+        self.executor.shutdown(wait=False)
+

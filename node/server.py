@@ -802,10 +802,25 @@ if os.path.exists(web_dir):
     def get_docs():
         return FileResponse(os.path.join(web_dir, "docs.html"))
 
+    @app.get("/wallet")
+    def get_wallet_page():
+        return FileResponse(os.path.join(web_dir, "wallet.html"))
+
     @app.get("/install.sh")
     def get_install_script():
         script_path = os.path.join(web_dir, "install.sh")
         return FileResponse(script_path, media_type="text/x-shellscript")
+
+    @app.get("/download/Doomsday-v1.0.0-windows-x64.zip")
+    def download_windows_miner():
+        candidates = [
+            os.path.join(web_dir, "Doomsday-v1.0.0-Windows-x64.zip"),
+            os.path.join(os.path.dirname(os.path.dirname(__file__)), "desktop", "dist", "Doomsday-v1.0.0-Windows-x64.zip")
+        ]
+        for p in candidates:
+            if os.path.exists(p):
+                return FileResponse(p, filename="Doomsday-v1.0.0-Windows-x64.zip", media_type="application/zip")
+        raise HTTPException(status_code=404, detail="Release file not found")
 
 
 @app.on_event("startup")

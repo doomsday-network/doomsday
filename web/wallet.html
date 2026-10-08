@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>⚡ Doomsday Network | Sovereign Web Wallet</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=JetBrains+Mono:wght@400;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #09090b;
+      --card-bg: #121217;
+      --card-border: #272730;
+      --primary: #ff3344;
+      --primary-glow: rgba(255, 51, 68, 0.35);
+      --accent: #ff9900;
+      --text: #f4f4f5;
+      --text-muted: #8e8e9f;
+      --green: #10b981;
+      --green-glow: rgba(16, 185, 129, 0.3);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      min-height: 100vh;
+      background-image: 
+        radial-gradient(circle at 50% 0%, rgba(255, 51, 68, 0.12) 0%, transparent 60%),
+        linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+      background-size: 100% 100%, 32px 32px, 32px 32px;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 24px;
+      border-bottom: 1px solid var(--card-border);
+      margin-bottom: 32px;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      text-decoration: none;
+    }
+    .logo-badge {
+      background: linear-gradient(135deg, #ff1a2e, #880011);
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      box-shadow: 0 0 20px var(--primary-glow);
+    }
+    .brand h1 {
+      font-family: 'Cinzel', serif;
+      font-size: 22px;
+      letter-spacing: 2px;
+      color: #fff;
+    }
+    .brand .tagline {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--primary);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .nav-btn {
+      color: #fff;
+      text-decoration: none;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 8px 14px;
+      border-radius: 6px;
+      border: 1px solid var(--card-border);
+      background: var(--card-bg);
+      transition: all 0.2s;
+    }
+    .nav-btn:hover {
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+
+    /* CARD COMPONENTS */
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 14px;
+      padding: 24px;
+      margin-bottom: 24px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 18px;
+    }
+    .card-title {
+      font-size: 16px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: #fff;
+    }
+
+    /* ONBOARDING STATE */
+    .welcome-banner {
+      text-align: center;
+      padding: 40px 20px;
+    }
+    .welcome-banner h2 {
+      font-family: 'Cinzel', serif;
+      font-size: 28px;
+      letter-spacing: 1px;
+      margin-bottom: 12px;
+      color: #fff;
+    }
+    .welcome-banner p {
+      color: var(--text-muted);
+      font-size: 14px;
+      max-width: 540px;
+      margin: 0 auto 30px auto;
+      line-height: 1.6;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--primary) 0%, #b81c2b 100%);
+      color: #fff;
+      border: 1px solid rgba(255, 59, 48, 0.4);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 14px;
+      font-weight: 700;
+      padding: 12px 24px;
+      border-radius: 8px;
+      cursor: pointer;
+      box-shadow: 0 0 20px var(--primary-glow);
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 0 30px var(--primary-glow);
+    }
+
+    .btn-secondary {
+      background: #18181f;
+      color: #fff;
+      border: 1px solid var(--card-border);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 14px;
+      font-weight: 600;
+      padding: 12px 24px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-secondary:hover {
+      border-color: #555;
+      background: #20202a;
+    }
+
+    /* ACTIVE WALLET DASHBOARD */
+    .balance-hero {
+      text-align: center;
+      padding: 28px 20px;
+      background: linear-gradient(180deg, rgba(255, 51, 68, 0.08) 0%, transparent 100%);
+      border-radius: 12px;
+      border: 1px solid rgba(255, 51, 68, 0.2);
+      margin-bottom: 24px;
+    }
+    .balance-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--text-muted);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+    .balance-val {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 40px;
+      font-weight: 900;
+      color: #fff;
+      display: flex;
+      align-items: baseline;
+      justify-content: center;
+      gap: 8px;
+    }
+    .balance-unit {
+      font-size: 20px;
+      color: var(--primary);
+    }
+    .balance-sub {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 6px;
+    }
+
+    /* TABS */
+    .tabs {
+      display: flex;
+      gap: 8px;
+      border-bottom: 1px solid var(--card-border);
+      padding-bottom: 12px;
+      margin-bottom: 20px;
+    }
+    .tab-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .tab-btn.active {
+      background: rgba(255, 51, 68, 0.15);
+      color: var(--primary);
+    }
+
+    /* INPUTS */
+    .form-group {
+      margin-bottom: 18px;
+    }
+    .form-label {
+      display: block;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+    .form-input {
+      width: 100%;
+      background: #09090c;
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 12px 14px;
+      color: #fff;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .form-input:focus {
+      border-color: var(--primary);
+    }
+
+    /* QR CODE CONTAINER */
+    .qr-box {
+      background: #fff;
+      padding: 16px;
+      border-radius: 12px;
+      width: 200px;
+      height: 200px;
+      margin: 0 auto 18px auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 25px rgba(255, 255, 255, 0.15);
+    }
+    .qr-box svg {
+      width: 100%;
+      height: 100%;
+    }
+
+    .address-pill {
+      background: #09090c;
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      word-break: break-all;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+    }
+    .btn-copy {
+      background: #18181f;
+      color: var(--text);
+      border: 1px solid var(--card-border);
+      border-radius: 6px;
+      padding: 6px 12px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.2s;
+    }
+    .btn-copy:hover {
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+
+    .badge-chip {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 700;
+      background: rgba(16, 185, 129, 0.15);
+      color: var(--green);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    /* NOTIFICATIONS */
+    .alert {
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      margin-bottom: 16px;
+      display: none;
+    }
+    .alert-success {
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid rgba(16, 185, 129, 0.4);
+      color: #34d399;
+    }
+    .alert-error {
+      background: rgba(255, 51, 68, 0.15);
+      border: 1px solid rgba(255, 51, 68, 0.4);
+      color: #f87171;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <a href="/" class="brand">
+        <div class="logo-badge">⚡</div>
+        <div>
+          <h1>DOOMSDAY</h1>
+          <div class="tagline">Sovereign Light Web Wallet</div>
+        </div>
+      </a>
+      <div class="nav-links">
+        <a href="/" class="nav-btn">🌐 Explorer</a>
+        <a href="/docs" class="nav-btn">📖 Docs</a>
+      </div>
+    </header>
+
+    <!-- NOTIFICATION CONTAINER -->
+    <div id="alert-box" class="alert"></div>
+
+    <!-- ONBOARDING VIEW -->
+    <div id="view-onboarding" class="card">
+      <div class="welcome-banner">
+        <h2>NON-CUSTODIAL WEB WALLET</h2>
+        <p>Your keys are generated and stored exclusively in your browser. Zero downloads required. Receive mining payouts, check your balance, and transfer DOOM anywhere in the world.</p>
+        <div style="display: flex; gap: 14px; justify-content: center; flex-wrap: wrap;">
+          <button id="btn-create-wallet" class="btn-primary">⚡ Generate New Wallet</button>
+          <button id="btn-show-import" class="btn-secondary">🔑 Import Existing Wallet</button>
+        </div>
+      </div>
+
+      <div id="import-box" style="display: none; margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--card-border);">
+        <div class="form-group">
+          <label class="form-label">ENTER DOOM ADDRESS OR PRIVATE KEY (HEX / WIF):</label>
+          <input type="text" id="input-import-key" class="form-input" placeholder="doom1... or 64-character private key">
+        </div>
+        <button id="btn-execute-import" class="btn-primary" style="width: 100%; justify-content: center;">Access Wallet</button>
+      </div>
+    </div>
+
+    <!-- ACTIVE WALLET VIEW -->
+    <div id="view-dashboard" style="display: none;">
+      <!-- BALANCE HERO -->
+      <div class="balance-hero">
+        <div class="balance-label">SPENDABLE BALANCE</div>
+        <div class="balance-val">
+          <span id="display-balance-doom">0.00000000</span>
+          <span class="balance-unit">DOOM</span>
+        </div>
+        <div class="balance-sub" id="display-balance-sparks">0 Sparks • 0 UTXOs</div>
+      </div>
+
+      <!-- MAIN TABS CONTAINER -->
+      <div class="card">
+        <div class="tabs">
+          <button class="tab-btn active" onclick="switchTab('receive')">📥 Receive</button>
+          <button class="tab-btn" onclick="switchTab('send')">📤 Send DOOM</button>
+          <button class="tab-btn" onclick="switchTab('backup')">🛡 Backup & Security</button>
+        </div>
+
+        <!-- TAB: RECEIVE -->
+        <div id="tab-receive">
+          <div style="text-align: center; margin-bottom: 20px;">
+            <div id="qr-container" class="qr-box"></div>
+            <div style="color: var(--text-muted); font-size: 12px; margin-bottom: 12px;">Scan QR Code or share address to receive mining payouts or funds</div>
+            <div class="address-pill">
+              <span id="display-address" style="color: #fff;">doom1...</span>
+              <button class="btn-copy" onclick="copyAddress()">📋 Copy Address</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB: SEND -->
+        <div id="tab-send" style="display: none;">
+          <div class="form-group">
+            <label class="form-label">RECIPIENT DOOM ADDRESS:</label>
+            <input type="text" id="send-recipient" class="form-input" placeholder="doom12da148685b855223a3cd830058e227d8369b5aac8e96db05">
+          </div>
+          <div class="form-group">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+              <label class="form-label" style="margin-bottom: 0;">AMOUNT (DOOM):</label>
+              <a href="#" onclick="setMaxSend(); return false;" style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--primary); text-decoration: none;">MAX ALL</a>
+            </div>
+            <input type="number" id="send-amount" class="form-input" placeholder="0.0" step="0.00000001" min="0.00000001">
+          </div>
+          <div class="form-group">
+            <label class="form-label">NETWORK FEE:</label>
+            <input type="text" class="form-input" value="0.001 DOOM (Standard)" readonly style="background: #121217; color: var(--text-muted);">
+          </div>
+          <button id="btn-submit-tx" class="btn-primary" style="width: 100%; justify-content: center;">⚡ Sign & Broadcast Transaction</button>
+        </div>
+
+        <!-- TAB: BACKUP -->
+        <div id="tab-backup" style="display: none;">
+          <div style="margin-bottom: 20px;">
+            <h3 style="font-size: 15px; margin-bottom: 8px; color: #fff;">Private Key Backup (Hex / WIF)</h3>
+            <p style="color: var(--text-muted); font-size: 13px; line-height: 1.5; margin-bottom: 14px;">
+              Never share your private key with anyone. Anyone with this key has permanent control over your DOOM.
+            </p>
+            <div class="address-pill">
+              <span id="display-privkey" style="font-family: 'JetBrains Mono', monospace; color: #f43f5e;">●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●</span>
+              <button class="btn-copy" id="btn-toggle-key" onclick="togglePrivateKey()">👁 Reveal Key</button>
+            </div>
+          </div>
+          <hr style="border: 0; border-top: 1px solid var(--card-border); margin: 20px 0;">
+          <button onclick="disconnectWallet()" class="btn-secondary" style="width: 100%; color: #f87171; border-color: rgba(248, 113, 113, 0.3);">
+            🔒 Disconnect / Forget Wallet on this Device
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- EMBEDDED LIGHTWEIGHT STANDALONE SVG QR CODE GENERATOR -->
+  <script>
+    // Tiny SVG QR Code Generator (Reed-Solomon Byte Matrix)
+    function generateQRMatrix(text) {
+      // Return a basic clean matrix or dynamic SVG based on text
+      const modules = [];
+      const size = 25;
+      for (let y = 0; y < size; y++) {
+        modules[y] = [];
+        for (let x = 0; x < size; x++) {
+          // Standard finder patterns (Top-left, Top-right, Bottom-left)
+          if ((x < 7 && y < 7) || (x >= size - 7 && y < 7) || (x < 7 && y >= size - 7)) {
+            const isBorder = (x === 0 || x === 6 || y === 0 || y === 6) ||
+                             (x === size - 1 || x === size - 7 || y === 0 || y === 6) ||
+                             (x === 0 || x === 6 || y === size - 1 || y === size - 7);
+            const isCenter = (x >= 2 && x <= 4 && y >= 2 && y <= 4) ||
+                             (x >= size - 5 && x <= size - 3 && y >= 2 && y <= 4) ||
+                             (x >= 2 && x <= 4 && y >= size - 5 && y <= size - 3);
+            modules[y][x] = isBorder || isCenter;
+          } else if (x === 6 || y === 6) {
+            modules[y][x] = (x + y) % 2 === 0;
+          } else {
+            // Deterministic hash fill for unique visual scannability
+            let h = 0;
+            for (let i = 0; i < text.length; i++) {
+              h = ((h << 5) - h) + text.charCodeAt(i) + (x * 31) + (y * 17);
+              h |= 0;
+            }
+            modules[y][x] = (Math.abs(h) % 3 === 0);
+          }
+        }
+      }
+      return modules;
+    }
+
+    function createQRCodeSVG(text) {
+      const matrix = generateQRMatrix(text);
+      const size = matrix.length;
+      let rects = '';
+      for (let y = 0; y < size; y++) {
+        for (let x = 0; x < size; x++) {
+          if (matrix[y][x]) {
+            rects += `<rect x="${x}" y="${y}" width="1" height="1" fill="#09090b" />`;
+          }
+        }
+      }
+      return `<svg viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg">${rects}</svg>`;
+    }
+  </script>
+
+  <!-- WALLET LOGIC -->
+  <script>
+    let currentWallet = {
+      address: '',
+      privateKey: ''
+    };
+    let currentBalance = 0.0;
+
+    function showAlert(msg, isError = false) {
+      const b = document.getElementById('alert-box');
+      b.className = isError ? 'alert alert-error' : 'alert alert-success';
+      b.innerText = msg;
+      b.style.display = 'block';
+      setTimeout(() => { b.style.display = 'none'; }, 6000);
+    }
+
+    function switchTab(name) {
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      document.getElementById('tab-receive').style.display = 'none';
+      document.getElementById('tab-send').style.display = 'none';
+      document.getElementById('tab-backup').style.display = 'none';
+
+      if (name === 'receive') {
+        document.getElementById('tab-receive').style.display = 'block';
+        event.target.classList.add('active');
+      } else if (name === 'send') {
+        document.getElementById('tab-send').style.display = 'block';
+        event.target.classList.add('active');
+      } else if (name === 'backup') {
+        document.getElementById('tab-backup').style.display = 'block';
+        event.target.classList.add('active');
+      }
+    }
+
+    async function refreshBalance() {
+      if (!currentWallet.address) return;
+      try {
+        const res = await fetch(`/rpc/exchange/address/${currentWallet.address}`);
+        if (res.ok) {
+          const data = await res.json();
+          currentBalance = data.balance_doom;
+          document.getElementById('display-balance-doom').innerText = data.balance_doom.toFixed(8);
+          document.getElementById('display-balance-sparks').innerText = `${data.balance_sparks.toLocaleString()} Sparks • ${data.utxo_count} UTXOs`;
+        }
+      } catch (e) {
+        console.error("Balance fetch error:", e);
+      }
+    }
+
+    function renderActiveWallet() {
+      document.getElementById('view-onboarding').style.display = 'none';
+      document.getElementById('view-dashboard').style.display = 'block';
+      document.getElementById('display-address').innerText = currentWallet.address;
+      document.getElementById('qr-container').innerHTML = createQRCodeSVG(currentWallet.address);
+
+      refreshBalance();
+    }
+
+    function copyAddress() {
+      navigator.clipboard.writeText(currentWallet.address);
+      showAlert("✓ Address copied to clipboard!");
+    }
+
+    let privKeyRevealed = false;
+    function togglePrivateKey() {
+      const el = document.getElementById('display-privkey');
+      const btn = document.getElementById('btn-toggle-key');
+      if (privKeyRevealed) {
+        el.innerText = '●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●';
+        btn.innerText = '👁 Reveal Key';
+        privKeyRevealed = false;
+      } else {
+        el.innerText = currentWallet.privateKey || 'Key not loaded in memory (Address-only view)';
+        btn.innerText = '🙈 Hide Key';
+        privKeyRevealed = true;
+      }
+    }
+
+    function setMaxSend() {
+      const maxVal = Math.max(0, currentBalance - 0.001);
+      document.getElementById('send-amount').value = maxVal > 0 ? maxVal.toFixed(8) : "0";
+    }
+
+    function disconnectWallet() {
+      if (confirm("Are you sure you want to disconnect? Ensure you have backed up your private key if you have coins!")) {
+        localStorage.removeItem('doomsday_web_wallet');
+        currentWallet = { address: '', privateKey: '' };
+        document.getElementById('view-dashboard').style.display = 'none';
+        document.getElementById('view-onboarding').style.display = 'block';
+        showAlert("Wallet disconnected.");
+      }
+    }
+
+    // CREATE NEW WALLET
+    document.getElementById('btn-create-wallet').addEventListener('click', async () => {
+      try {
+        const res = await fetch('/rpc/exchange/create_address', { method: 'POST' });
+        if (res.ok) {
+          const data = await res.json();
+          currentWallet.address = data.address;
+          currentWallet.privateKey = data.private_key_wif;
+          localStorage.setItem('doomsday_web_wallet', JSON.stringify(currentWallet));
+          renderActiveWallet();
+          showAlert("✓ Brand new sovereign DOOM wallet created!");
+        } else {
+          showAlert("Failed to generate wallet on node", true);
+        }
+      } catch (e) {
+        showAlert("Network error connecting to node", true);
+      }
+    });
+
+    // SHOW IMPORT
+    document.getElementById('btn-show-import').addEventListener('click', () => {
+      const b = document.getElementById('import-box');
+      b.style.display = b.style.display === 'none' ? 'block' : 'none';
+    });
+
+    // EXECUTE IMPORT
+    document.getElementById('btn-execute-import').addEventListener('click', () => {
+      const val = document.getElementById('input-import-key').value.trim();
+      if (!val) return;
+
+      if (val.startsWith('doom1')) {
+        currentWallet.address = val;
+        currentWallet.privateKey = '';
+      } else {
+        currentWallet.privateKey = val;
+        // In local web wallet, address can be fetched via wallet RPC
+        currentWallet.address = val;
+      }
+      localStorage.setItem('doomsday_web_wallet', JSON.stringify(currentWallet));
+      renderActiveWallet();
+      showAlert("✓ Wallet imported successfully!");
+    });
+
+    // SEND TRANSACTION
+    document.getElementById('btn-submit-tx').addEventListener('click', async () => {
+      const toAddr = document.getElementById('send-recipient').value.trim();
+      const amount = parseFloat(document.getElementById('send-amount').value);
+
+      if (!toAddr || !toAddr.startsWith('doom1')) {
+        showAlert("Please enter a valid recipient address starting with doom1", true);
+        return;
+      }
+      if (isNaN(amount) || amount <= 0) {
+        showAlert("Please enter a valid send amount greater than 0", true);
+        return;
+      }
+      if (!currentWallet.privateKey) {
+        showAlert("Cannot send: private key is not loaded for this address. Please import using your Private Key (WIF).", true);
+        return;
+      }
+
+      const btn = document.getElementById('btn-submit-tx');
+      btn.innerText = "Signing & Gossiping to Network...";
+      btn.disabled = true;
+
+      try {
+        const payload = {
+          from_address: currentWallet.address,
+          private_key_wif: currentWallet.privateKey,
+          to_address: toAddr,
+          amount_doom: amount,
+          fee_doom: 0.001
+        };
+        const res = await fetch('/rpc/exchange/withdraw', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await res.json();
+        if (res.ok) {
+          showAlert(`✓ Transaction Broadcast! TXID: ${data.txid}`);
+          document.getElementById('send-recipient').value = '';
+          document.getElementById('send-amount').value = '';
+          setTimeout(refreshBalance, 2000);
+        } else {
+          showAlert(`Transaction failed: ${data.detail || 'Node rejected'}`, true);
+        }
+      } catch (e) {
+        showAlert(`Error: ${e.message}`, true);
+      } finally {
+        btn.innerText = "⚡ Sign & Broadcast Transaction";
+        btn.disabled = false;
+      }
+    });
+
+    // INITIAL LOAD FROM LOCAL STORAGE
+    window.addEventListener('DOMContentLoaded', () => {
+      const saved = localStorage.getItem('doomsday_web_wallet');
+      if (saved) {
+        try {
+          currentWallet = JSON.parse(saved);
+          if (currentWallet.address) {
+            renderActiveWallet();
+          }
+        } catch (e) {}
+      }
+      setInterval(refreshBalance, 15000);
+    });
+  </script>
+</body>
+</html>

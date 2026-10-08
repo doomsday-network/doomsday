@@ -5,8 +5,8 @@ import subprocess
 import sys
 import time
 import requests
-from typing import Optional, Dict, Any, Tuple
-from miner.cuda_solver import CUDASolver
+from typing import Optional, Dict, Any, Tuple, List
+from miner.cuda_solver import CUDASolver, MultiCUDASolver
 from core.crypto import doom_hash
 
 
@@ -113,6 +113,7 @@ class IdleSentinelMiner:
         batch_size: int = 5_000_000,
         temp_limit_c: int = 75,
         device_index: int = 0,
+        devices: Optional[List[int]] = None,
         pool_url: Optional[str] = None
     ):
         if not node_url.startswith("http://") and not node_url.startswith("https://"):
@@ -128,10 +129,15 @@ class IdleSentinelMiner:
         self.batch_size = batch_size
         self.temp_limit_c = temp_limit_c
         self.device_index = device_index
+        self.devices = devices
 
-        print(f"Initializing Mining Engine for [{self.miner_name}] (Device #{self.device_index})...")
+        print(f"Initializing Mining Engine for [{self.miner_name}]...")
         try:
-            self.solver = CUDASolver(device_index=self.device_index)
+            if self.devices and len(self.devices) > 1:
+                self.solver = MultiCUDASolver(device_indices=self.devices)
+            else:
+                target_dev = self.devices[0] if (self.devices and len(self.devices) == 1) else self.device_index
+                self.solver = CUDASolver(device_index=target_dev)
             print(f"Engine Ready: {self.solver.device_name}")
         except Exception as e:
             print(f"[!] CUDA GPU Initialization failed ({e}). Falling back to CPU Solver...")
@@ -366,12 +372,22 @@ if __name__ == '__main__':
     parser.add_argument("--name", default="Rig-GPU", help="Miner identifier name")
     parser.add_argument("--idle-sec", type=float, default=60.0, help="Idle seconds required before mining")
     parser.add_argument("--continuous", action="store_true", help="Run continuously (for headless Linux/HiveOS rigs)")
-    parser.add_argument("--device", type=int, default=0, help="CUDA device index (default: 0)")
+    parser.add_argument("--device", type=int, default=0, help="Primary CUDA device index (default: 0)")
+    parser.add_argument("--devices", default=None, help="Comma-separated GPU indices (e.g. 0,1) or 'all' for all available GPUs")
     parser.add_argument("--batch-size", type=int, default=10_000_000, help="Nonces per GPU batch")
     parser.add_argument("--temp-limit", type=int, default=75, help="Thermal cutoff in Celsius")
 
     args = parser.parse_args()
     effective_idle = 0.0 if args.continuous else args.idle_sec
+
+    target_devices = None
+    if args.devices:
+        if args.devices.strip().lower() == 'all':
+            total_devs = CUDASolver.get_device_count()
+            target_devices = list(range(max(1, total_devs)))
+        else:
+            target_devices = [int(x.strip()) for x in args.devices.split(',') if x.strip().isdigit()]
+
     sentinel = IdleSentinelMiner(
         node_url=args.node,
         wallet_address=args.wallet,
@@ -380,6 +396,7 @@ if __name__ == '__main__':
         batch_size=args.batch_size,
         temp_limit_c=args.temp_limit,
         device_index=args.device,
+        devices=target_devices,
         pool_url=args.pool
     )
     sentinel.run()
