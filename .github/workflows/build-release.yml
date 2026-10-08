@@ -38,7 +38,7 @@ jobs:
 
       - name: Run Cryptographic & Consensus Tests
         run: |
-          python -m pytest tests/test_core.py tests/test_exchange_rpc.py -v
+          python -m pytest tests/test_core.py tests/test_exchange_rpc.py tests/test_bridge.py -v
 
   build-desktop:
     name: Build & Package Desktop Client (Windows)
