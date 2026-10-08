@@ -44,7 +44,12 @@ function loadConfig() {
     idle_seconds: 180,
     temp_limit: 75,
     start_at_boot: true,
-    minimize_to_tray: true
+    minimize_to_tray: true,
+    force_mine: false,
+    schedule_enabled: false,
+    schedule_start: '23:00',
+    schedule_end: '07:00',
+    schedule_behavior: 'force'
   };
   try {
     if (fs.existsSync(configPath)) {
@@ -155,12 +160,18 @@ function createTray() {
 function updateTrayMenu() {
   if (!tray) return;
 
-  const stateStr = minerStatus.state === 'MINING' 
-    ? `⚡ Mining (${minerStatus.hashrate_mhs.toFixed(1)} MH/s)`
-    : minerStatus.state === 'PAUSED' ? '⏸ Paused' : '🛡 Standing Vigil (Idle)';
+  const cfg = loadConfig();
+  let statusText = '🛡 Standing Vigil (Idle)';
+  if (minerStatus.state === 'FORCE_MINING') statusText = `⚡ Force Mining (${minerStatus.hashrate_mhs.toFixed(1)} MH/s)`;
+  else if (minerStatus.state === 'MINING') statusText = `⚡ Mining (${minerStatus.hashrate_mhs.toFixed(1)} MH/s)`;
+  else if (minerStatus.state === 'SCHEDULE_STANDBY') statusText = `🌙 Schedule Standby (${cfg.schedule_start}-${cfg.schedule_end})`;
+  else if (minerStatus.state === 'STANDBY') statusText = '🛡 User Active (Idle)';
+  else if (minerStatus.state === 'PAUSED') statusText = '⏸ Paused';
+  else if (minerStatus.state === 'STOPPED') statusText = '⏹ Stopped';
 
   const contextMenu = Menu.buildFromTemplate([
-    { label: stateStr, enabled: false },
+    { label: statusText, enabled: false },
+    { label: `${minerStatus.temp_c}°C • ${minerStatus.power_w.toFixed(1)}W`, enabled: false },
     { type: 'separator' },
     {
       label: 'Open Dashboard',
@@ -169,6 +180,16 @@ function updateTrayMenu() {
           mainWindow.show();
           mainWindow.focus();
         }
+      }
+    },
+    {
+      label: cfg.force_mine ? '🛡 Switch to Idle Sentinel' : '⚡ Force Mine (100% Load)',
+      click: () => {
+        cfg.force_mine = !cfg.force_mine;
+        saveConfig(cfg);
+        stopMinerChildProcess();
+        startMinerChildProcess(cfg);
+        broadcastMinerUpdate();
       }
     },
     {
@@ -202,7 +223,7 @@ function updateTrayMenu() {
 }
 
 function startMinerChildProcess(cfg) {
-  if (minerProcess && (minerStatus.state === 'MINING' || minerStatus.state === 'STANDBY' || minerStatus.state === 'VIGIL')) {
+  if (minerProcess && (minerStatus.state === 'MINING' || minerStatus.state === 'FORCE_MINING' || minerStatus.state === 'STANDBY' || minerStatus.state === 'SCHEDULE_STANDBY' || minerStatus.state === 'VIGIL')) {
     return;
   }
   stopMinerChildProcess();
@@ -221,6 +242,18 @@ function startMinerChildProcess(cfg) {
     '--batch-size', '50000000'
   ];
 
+  if (cfg.force_mine) {
+    args.push('--continuous');
+  }
+
+  if (cfg.schedule_enabled && cfg.schedule_start && cfg.schedule_end) {
+    args.push('--schedule-start', cfg.schedule_start);
+    args.push('--schedule-end', cfg.schedule_end);
+    if (cfg.schedule_behavior === 'force') {
+      args.push('--schedule-force');
+    }
+  }
+
   console.log('[Desktop] Spawning miner sentinel:', pythonCmd, args.join(' '));
 
   minerProcess = spawn(pythonCmd, args, {
@@ -228,7 +261,7 @@ function startMinerChildProcess(cfg) {
     env: Object.assign({}, process.env, { PYTHONUNBUFFERED: '1', PYTHONIOENCODING: 'utf-8' })
   });
 
-  minerStatus.state = 'VIGIL';
+  minerStatus.state = cfg.force_mine ? 'FORCE_MINING' : 'VIGIL';
   updateTrayMenu();
 
   minerProcess.stdout.on('data', (data) => {
@@ -256,10 +289,18 @@ function parseMinerOutput(text) {
   if (tempMatch) minerStatus.temp_c = parseInt(tempMatch[1]);
   if (powerMatch) minerStatus.power_w = parseFloat(powerMatch[1]);
 
-  if (text.includes('[MINING]')) {
+  if (text.includes('[FORCE MINING]')) {
+    minerStatus.state = 'FORCE_MINING';
+    updatePowerSave(true);
+    if (mhsMatch) minerStatus.hashrate_mhs = parseFloat(mhsMatch[1]);
+  } else if (text.includes('[MINING]')) {
     minerStatus.state = 'MINING';
     updatePowerSave(true);
     if (mhsMatch) minerStatus.hashrate_mhs = parseFloat(mhsMatch[1]);
+  } else if (text.includes('[Schedule Inactive]')) {
+    minerStatus.state = 'SCHEDULE_STANDBY';
+    minerStatus.hashrate_mhs = 0.0;
+    updatePowerSave(false);
   } else if (text.includes('[User Active]')) {
     minerStatus.state = 'STANDBY';
     minerStatus.hashrate_mhs = 0.0;
@@ -269,9 +310,8 @@ function parseMinerOutput(text) {
   broadcastMinerUpdate();
 }
 
-// Background Hardware Telemetry Polling (Runs when not mining to keep thermals accurate in UI)
 function pollSystemGpuTelemetry() {
-  if (minerStatus.state !== 'MINING') {
+  if (minerStatus.state !== 'MINING' && minerStatus.state !== 'FORCE_MINING') {
     exec('nvidia-smi --query-gpu=temperature.gpu,power.draw --format=csv,noheader,nounits', { timeout: 1500 }, (err, stdout) => {
       if (!err && stdout) {
         const parts = stdout.trim().split(',');
@@ -289,7 +329,15 @@ pollSystemGpuTelemetry();
 
 function broadcastMinerUpdate() {
   if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.webContents.send('miner-update', minerStatus);
+    const cfg = loadConfig();
+    const payload = Object.assign({}, minerStatus, {
+      force_mine: Boolean(cfg.force_mine),
+      schedule_enabled: Boolean(cfg.schedule_enabled),
+      schedule_start: cfg.schedule_start || '23:00',
+      schedule_end: cfg.schedule_end || '07:00',
+      schedule_behavior: cfg.schedule_behavior || 'force'
+    });
+    mainWindow.webContents.send('miner-update', payload);
   }
 }
 
@@ -387,6 +435,29 @@ ipcMain.handle('close-window', () => {
 });
 ipcMain.handle('open-external', (_event, url) => {
   shell.openExternal(url);
+});
+
+ipcMain.handle('toggle-force-mine', () => {
+  const cfg = loadConfig();
+  cfg.force_mine = !cfg.force_mine;
+  saveConfig(cfg);
+  stopMinerChildProcess();
+  startMinerChildProcess(cfg);
+  broadcastMinerUpdate();
+  return cfg.force_mine;
+});
+
+ipcMain.handle('update-schedule', (_event, sched) => {
+  const cfg = loadConfig();
+  cfg.schedule_enabled = !!sched.schedule_enabled;
+  cfg.schedule_start = sched.schedule_start || '23:00';
+  cfg.schedule_end = sched.schedule_end || '07:00';
+  cfg.schedule_behavior = sched.schedule_behavior || 'force';
+  saveConfig(cfg);
+  stopMinerChildProcess();
+  startMinerChildProcess(cfg);
+  broadcastMinerUpdate();
+  return true;
 });
 
 app.on('window-all-closed', () => {

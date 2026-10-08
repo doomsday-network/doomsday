@@ -103,6 +103,96 @@ document.addEventListener('DOMContentLoaded', async () => {
       showOOBE();
     });
 
+    // Force Mine Button Setup
+    const btnToggleForce = document.getElementById('btn-toggle-force');
+    const forceLabel = document.getElementById('force-label');
+    const forceIcon = document.getElementById('force-icon');
+
+    function updateForceButtonUI(isForce) {
+      if (isForce) {
+        forceIcon.innerText = '🛡';
+        forceLabel.innerText = 'RESUME IDLE SENTINEL';
+        btnToggleForce.style.background = '#10b981';
+        document.getElementById('label-mode-indicator').innerText = 'Mode: ⚡ Force Mine (100% Load)';
+        document.getElementById('label-mode-indicator').style.color = '#10b981';
+      } else {
+        forceIcon.innerText = '⚡';
+        forceLabel.innerText = 'MINE NOW (TEST LOAD)';
+        btnToggleForce.style.background = 'var(--primary)';
+        document.getElementById('label-mode-indicator').innerText = 'Mode: 🛡 Zero-Lag Idle Sentinel';
+        document.getElementById('label-mode-indicator').style.color = 'var(--text-muted)';
+      }
+    }
+
+    btnToggleForce.addEventListener('click', async () => {
+      btnToggleForce.disabled = true;
+      try {
+        const isForce = await window.doomsdayAPI.toggleForceMine();
+        updateForceButtonUI(isForce);
+      } catch (e) {
+        console.error(e);
+      } finally {
+        btnToggleForce.disabled = false;
+      }
+    });
+
+    // Schedule Modal Setup
+    const modalSchedule = document.getElementById('modal-schedule');
+    const btnOpenSched = document.getElementById('btn-open-scheduler');
+    const btnCloseSched = document.getElementById('btn-close-schedule');
+    const btnCloseSchedX = document.getElementById('btn-close-schedule-x');
+    const btnSaveSched = document.getElementById('btn-save-schedule');
+    const schedEnable = document.getElementById('sched-enable');
+    const schedStart = document.getElementById('sched-start');
+    const schedEnd = document.getElementById('sched-end');
+    const schedBehavior = document.getElementById('sched-behavior');
+    const labelSched = document.getElementById('label-schedule-indicator');
+
+    function syncScheduleInputs() {
+      schedEnable.checked = !!config.schedule_enabled;
+      schedStart.value = config.schedule_start || '23:00';
+      schedEnd.value = config.schedule_end || '07:00';
+      schedBehavior.value = config.schedule_behavior || 'force';
+      updateScheduleBadge();
+    }
+
+    function updateScheduleBadge() {
+      if (config.schedule_enabled) {
+        labelSched.innerText = `Schedule: 📅 ${config.schedule_start}-${config.schedule_end}`;
+        labelSched.style.color = 'var(--accent)';
+      } else {
+        labelSched.innerText = 'Schedule: Inactive (24/7)';
+        labelSched.style.color = 'var(--text-muted)';
+      }
+    }
+
+    btnOpenSched.addEventListener('click', () => {
+      syncScheduleInputs();
+      modalSchedule.style.display = 'flex';
+    });
+
+    const hideSchedModal = () => { modalSchedule.style.display = 'none'; };
+    btnCloseSched.addEventListener('click', hideSchedModal);
+    btnCloseSchedX.addEventListener('click', hideSchedModal);
+
+    btnSaveSched.addEventListener('click', async () => {
+      config.schedule_enabled = schedEnable.checked;
+      config.schedule_start = schedStart.value;
+      config.schedule_end = schedEnd.value;
+      config.schedule_behavior = schedBehavior.value;
+      await window.doomsdayAPI.updateSchedule({
+        schedule_enabled: config.schedule_enabled,
+        schedule_start: config.schedule_start,
+        schedule_end: config.schedule_end,
+        schedule_behavior: config.schedule_behavior
+      });
+      updateScheduleBadge();
+      hideSchedModal();
+    });
+
+    updateForceButtonUI(!!config.force_mine);
+    updateScheduleBadge();
+
     // Start miner if not already running
     window.doomsdayAPI.startMiner(config);
   }
@@ -122,7 +212,53 @@ document.addEventListener('DOMContentLoaded', async () => {
       thermVal.innerText = `${status.temp_c}°C • ${status.power_w ? status.power_w.toFixed(1) : 0}W`;
     }
 
-    if (status.state === 'MINING') {
+    if (status.force_mine !== undefined) {
+      const btnToggleForce = document.getElementById('btn-toggle-force');
+      const forceLabel = document.getElementById('force-label');
+      const forceIcon = document.getElementById('force-icon');
+      if (btnToggleForce && forceLabel && forceIcon) {
+        if (status.force_mine) {
+          forceIcon.innerText = '🛡';
+          forceLabel.innerText = 'RESUME IDLE SENTINEL';
+          btnToggleForce.style.background = '#10b981';
+          document.getElementById('label-mode-indicator').innerText = 'Mode: ⚡ Force Mine (100% Load)';
+          document.getElementById('label-mode-indicator').style.color = '#10b981';
+        } else {
+          forceIcon.innerText = '⚡';
+          forceLabel.innerText = 'MINE NOW (TEST LOAD)';
+          btnToggleForce.style.background = 'var(--primary)';
+          document.getElementById('label-mode-indicator').innerText = 'Mode: 🛡 Zero-Lag Idle Sentinel';
+          document.getElementById('label-mode-indicator').style.color = 'var(--text-muted)';
+        }
+      }
+    }
+
+    if (status.schedule_enabled !== undefined) {
+      config.schedule_enabled = status.schedule_enabled;
+      config.schedule_start = status.schedule_start;
+      config.schedule_end = status.schedule_end;
+      config.schedule_behavior = status.schedule_behavior;
+      const labelSched = document.getElementById('label-schedule-indicator');
+      if (labelSched) {
+        if (config.schedule_enabled) {
+          labelSched.innerText = `Schedule: 📅 ${config.schedule_start}-${config.schedule_end}`;
+          labelSched.style.color = 'var(--accent)';
+        } else {
+          labelSched.innerText = 'Schedule: Inactive (24/7)';
+          labelSched.style.color = 'var(--text-muted)';
+        }
+      }
+    }
+
+    if (status.state === 'FORCE_MINING' || (status.state === 'MINING' && status.force_mine)) {
+      orb.classList.add('mining');
+      orbIcon.innerText = '⚡';
+      stateText.innerText = 'FORCE MINING';
+      stateText.style.color = '#10b981';
+      subText.innerText = '100% SILICON LOAD';
+      subText.style.color = '#10b981';
+      speedVal.innerText = `${status.hashrate_mhs.toLocaleString()} MH/s`;
+    } else if (status.state === 'MINING') {
       orb.classList.add('mining');
       orbIcon.innerText = '⚡';
       stateText.innerText = 'MINING BLOCKS';
@@ -130,6 +266,14 @@ document.addEventListener('DOMContentLoaded', async () => {
       subText.innerText = 'SILICON AWAKE';
       subText.style.color = 'var(--primary)';
       speedVal.innerText = `${status.hashrate_mhs.toLocaleString()} MH/s`;
+    } else if (status.state === 'SCHEDULE_STANDBY') {
+      orb.classList.add('standby');
+      orbIcon.innerText = '🌙';
+      stateText.innerText = 'SCHEDULE STANDBY';
+      stateText.style.color = 'var(--text-muted)';
+      subText.innerText = `ACTIVE ${status.schedule_start || '23:00'}-${status.schedule_end || '07:00'}`;
+      subText.style.color = 'var(--text-muted)';
+      speedVal.innerText = '0.0 MH/s';
     } else if (status.state === 'STANDBY') {
       orb.classList.add('standby');
       orbIcon.innerText = '🛡';

@@ -11,5 +11,7 @@ contextBridge.exposeInMainWorld('doomsdayAPI', {
   onMinerUpdate: (callback) => ipcRenderer.on('miner-update', (_event, value) => callback(value)),
   minimizeWindow: () => ipcRenderer.invoke('minimize-window'),
   closeWindow: () => ipcRenderer.invoke('close-window'),
-  openExternal: (url) => ipcRenderer.invoke('open-external', url)
+  openExternal: (url) => ipcRenderer.invoke('open-external', url),
+  toggleForceMine: () => ipcRenderer.invoke('toggle-force-mine'),
+  updateSchedule: (scheduleCfg) => ipcRenderer.invoke('update-schedule', scheduleCfg)
 });

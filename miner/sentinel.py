@@ -1,5 +1,6 @@
 import argparse
 import ctypes
+import datetime
 import os
 import subprocess
 import sys
@@ -8,6 +9,24 @@ import requests
 from typing import Optional, Dict, Any, Tuple, List
 from miner.cuda_solver import CUDASolver, MultiCUDASolver
 from core.crypto import doom_hash
+
+
+def is_within_schedule(start_str: Optional[str], end_str: Optional[str]) -> bool:
+    """Return True if current time is within HH:MM - HH:MM window (handles midnight crossing)."""
+    if not start_str or not end_str:
+        return True
+    try:
+        sh, sm = [int(p) for p in start_str.strip().split(':')]
+        eh, em = [int(p) for p in end_str.strip().split(':')]
+        now = datetime.datetime.now().time()
+        start_t = datetime.time(sh, sm)
+        end_t = datetime.time(eh, em)
+        if start_t <= end_t:
+            return start_t <= now <= end_t
+        else:
+            return now >= start_t or now <= end_t
+    except Exception:
+        return True
 
 
 class LASTINPUTINFO(ctypes.Structure):
@@ -114,7 +133,10 @@ class IdleSentinelMiner:
         temp_limit_c: int = 75,
         device_index: int = 0,
         devices: Optional[List[int]] = None,
-        pool_url: Optional[str] = None
+        pool_url: Optional[str] = None,
+        schedule_start: Optional[str] = None,
+        schedule_end: Optional[str] = None,
+        schedule_force: bool = False
     ):
         if not node_url.startswith("http://") and not node_url.startswith("https://"):
             node_url = "https://" + node_url
@@ -130,6 +152,9 @@ class IdleSentinelMiner:
         self.temp_limit_c = temp_limit_c
         self.device_index = device_index
         self.devices = devices
+        self.schedule_start = schedule_start
+        self.schedule_end = schedule_end
+        self.schedule_force = schedule_force
 
         print(f"Initializing Mining Engine for [{self.miner_name}]...")
         try:
@@ -255,7 +280,11 @@ class IdleSentinelMiner:
         print(f"Node: {self.node_url}")
         print(f"Wallet: {self.wallet_address}")
         print(f"Idle Activation Threshold: {self.idle_threshold_sec}s")
-        print(f"Thermal Cutoff: {self.temp_limit_c}°C\n")
+        print(f"Thermal Cutoff: {self.temp_limit_c}°C")
+        if self.schedule_start and self.schedule_end:
+            print(f"Automated Schedule: {self.schedule_start} -> {self.schedule_end} (Force: {self.schedule_force})\n")
+        else:
+            print()
 
         current_job = None
         current_nonce = 0
@@ -273,16 +302,40 @@ class IdleSentinelMiner:
                 time.sleep(5)
                 continue
 
-            # Check if user is active
-            if self.idle_threshold_sec > 0 and idle_sec < self.idle_threshold_sec:
-                set_prevent_sleep(False)  # Allow normal power states while user active
-                if time.time() - last_heartbeat > 2:
-                    sys.stdout.write(f"\r[User Active] Standing by... (Idle: {idle_sec:.1f}s / {self.idle_threshold_sec:.0f}s) | GPU: {gpu_stats['temp_c']}°C ({gpu_stats['power_w']}W)\n")
-                    sys.stdout.flush()
-                    self.send_telemetry("SUSPENDED (ACTIVE)", 0.0, gpu_stats)
-                    last_heartbeat = time.time()
-                time.sleep(0.5)
-                continue
+            # Check schedule window
+            if self.schedule_start and self.schedule_end:
+                if not is_within_schedule(self.schedule_start, self.schedule_end):
+                    set_prevent_sleep(False)
+                    if time.time() - last_heartbeat > 2:
+                        sys.stdout.write(f"\r[Schedule Inactive] Standing by... (Active Window: {self.schedule_start} - {self.schedule_end}) | GPU: {gpu_stats['temp_c']}°C ({gpu_stats['power_w']}W)\n")
+                        sys.stdout.flush()
+                        self.send_telemetry("SUSPENDED (SCHEDULE)", 0.0, gpu_stats)
+                        last_heartbeat = time.time()
+                    time.sleep(1.0)
+                    continue
+                elif self.schedule_force:
+                    # Inside active schedule window with Force Continuous mode: bypass user input check!
+                    pass
+                elif self.idle_threshold_sec > 0 and idle_sec < self.idle_threshold_sec:
+                    set_prevent_sleep(False)
+                    if time.time() - last_heartbeat > 2:
+                        sys.stdout.write(f"\r[User Active] Standing by... (Idle: {idle_sec:.1f}s / {self.idle_threshold_sec:.0f}s) | GPU: {gpu_stats['temp_c']}°C ({gpu_stats['power_w']}W)\n")
+                        sys.stdout.flush()
+                        self.send_telemetry("SUSPENDED (ACTIVE)", 0.0, gpu_stats)
+                        last_heartbeat = time.time()
+                    time.sleep(0.5)
+                    continue
+            else:
+                # No schedule window configured: standard idle sentinel check
+                if self.idle_threshold_sec > 0 and idle_sec < self.idle_threshold_sec:
+                    set_prevent_sleep(False)  # Allow normal power states while user active
+                    if time.time() - last_heartbeat > 2:
+                        sys.stdout.write(f"\r[User Active] Standing by... (Idle: {idle_sec:.1f}s / {self.idle_threshold_sec:.0f}s) | GPU: {gpu_stats['temp_c']}°C ({gpu_stats['power_w']}W)\n")
+                        sys.stdout.flush()
+                        self.send_telemetry("SUSPENDED (ACTIVE)", 0.0, gpu_stats)
+                        last_heartbeat = time.time()
+                    time.sleep(0.5)
+                    continue
 
             # PC IS IDLE - PROCEED TO MINE!
             set_prevent_sleep(True)  # Keep PC and GPU awake, while displays sleep normally
@@ -327,8 +380,9 @@ class IdleSentinelMiner:
             # Sample GPU telemetry immediately after active compute so power reflects full load!
             gpu_stats = get_gpu_telemetry()
 
+            mode_tag = "[FORCE MINING]" if (self.idle_threshold_sec <= 0 or (self.schedule_start and self.schedule_force)) else "[MINING]"
             sys.stdout.write(
-                f"\r[MINING] Block #{current_job['height']} | "
+                f"\r{mode_tag} Block #{current_job['height']} | "
                 f"Speed: {mhs:.2f} MH/s | "
                 f"GPU: {gpu_stats['temp_c']}°C ({gpu_stats['power_w']}W) | "
                 f"Nonces: {current_nonce:,}\n"
@@ -376,6 +430,9 @@ if __name__ == '__main__':
     parser.add_argument("--devices", default=None, help="Comma-separated GPU indices (e.g. 0,1) or 'all' for all available GPUs")
     parser.add_argument("--batch-size", type=int, default=10_000_000, help="Nonces per GPU batch")
     parser.add_argument("--temp-limit", type=int, default=75, help="Thermal cutoff in Celsius")
+    parser.add_argument("--schedule-start", default=None, help="Scheduled mining window start (HH:MM 24h format, e.g. 23:00)")
+    parser.add_argument("--schedule-end", default=None, help="Scheduled mining window end (HH:MM 24h format, e.g. 07:00)")
+    parser.add_argument("--schedule-force", action="store_true", help="Force continuous 100%% mining during scheduled window")
 
     args = parser.parse_args()
     effective_idle = 0.0 if args.continuous else args.idle_sec
@@ -397,6 +454,9 @@ if __name__ == '__main__':
         temp_limit_c=args.temp_limit,
         device_index=args.device,
         devices=target_devices,
-        pool_url=args.pool
+        pool_url=args.pool,
+        schedule_start=args.schedule_start,
+        schedule_end=args.schedule_end,
+        schedule_force=args.schedule_force
     )
     sentinel.run()
