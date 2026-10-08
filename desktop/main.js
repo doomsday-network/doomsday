@@ -67,7 +67,8 @@ function saveConfig(cfg) {
     // Update startup setting
     app.setLoginItemSettings({
       openAtLogin: !!cfg.start_at_boot,
-      openAsHidden: true
+      openAsHidden: true,
+      args: ['--hidden']
     });
     return true;
   } catch (e) {
@@ -91,15 +92,27 @@ if (!gotTheLock) {
 
   app.whenReady().then(() => {
     const config = loadConfig();
+    const loginSettings = app.getLoginItemSettings();
+    const isStartAtBootLaunch = loginSettings.wasOpenedAsHidden || process.argv.includes('--hidden') || process.argv.includes('--minimized');
 
-    createWindow();
+    const shouldStartHidden = isStartAtBootLaunch && !config.first_run && !!config.wallet_address;
+
+    createWindow(shouldStartHidden);
     createTray();
 
     if (config.start_at_boot) {
       app.setLoginItemSettings({
         openAtLogin: true,
-        openAsHidden: true
+        openAsHidden: true,
+        args: ['--hidden']
       });
+    }
+
+    if (shouldStartHidden && Notification.isSupported()) {
+      new Notification({
+        title: 'Doomsday Network Active',
+        body: 'Doomsday started silently in the system tray. Standing vigil.'
+      }).show();
     }
 
     // If already onboarded, start background sentinel immediately
@@ -119,12 +132,15 @@ if (!gotTheLock) {
   });
 }
 
-function createWindow() {
+let lastTrayNotifyTime = 0;
+
+function createWindow(startHidden = false) {
   mainWindow = new BrowserWindow({
     width: 460,
     height: 720,
     resizable: false,
     frame: false,
+    show: !startHidden,
     backgroundColor: '#09090b',
     icon: path.join(__dirname, 'ui', 'icon.png'),
     webPreferences: {
@@ -136,17 +152,33 @@ function createWindow() {
 
   mainWindow.loadFile(path.join(__dirname, 'ui', 'index.html'));
 
+  if (!startHidden) {
+    mainWindow.once('ready-to-show', () => {
+      mainWindow.show();
+      mainWindow.focus();
+    });
+  }
+
   mainWindow.on('close', (event) => {
     if (!isQuitting) {
-      event.preventDefault();
-      mainWindow.hide();
-
       const config = loadConfig();
-      if (config.minimize_to_tray && Notification.isSupported()) {
-        new Notification({
-          title: 'Doomsday Network',
-          body: 'Doomsday is standing vigil in the background. It will mine only when you are idle.'
-        }).show();
+      if (config.minimize_to_tray) {
+        event.preventDefault();
+        mainWindow.hide();
+
+        const now = Date.now();
+        if (now - lastTrayNotifyTime > 600000 && Notification.isSupported()) {
+          lastTrayNotifyTime = now;
+          new Notification({
+            title: 'Doomsday Network',
+            body: 'Doomsday is standing vigil in the background. It will mine only when you are idle.'
+          }).show();
+        }
+      } else {
+        isQuitting = true;
+        stopMinerChildProcess();
+        if (tray) tray.destroy();
+        app.quit();
       }
     }
   });
@@ -161,6 +193,19 @@ function createTray() {
 
   tray.on('click', () => {
     if (mainWindow) {
+      if (mainWindow.isVisible()) {
+        mainWindow.hide();
+      } else {
+        if (mainWindow.isMinimized()) mainWindow.restore();
+        mainWindow.show();
+        mainWindow.focus();
+      }
+    }
+  });
+
+  tray.on('double-click', () => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
       mainWindow.show();
       mainWindow.focus();
     }
@@ -179,14 +224,19 @@ function updateTrayMenu() {
   else if (minerStatus.state === 'PAUSED') statusText = '⏸ Paused';
   else if (minerStatus.state === 'STOPPED') statusText = '⏹ Stopped';
 
+  try {
+    tray.setToolTip(`Doomsday Network\nStatus: ${statusText}\nHashrate: ${minerStatus.hashrate_mhs.toFixed(1)} MH/s\nTemp: ${minerStatus.temp_c}°C | Power: ${minerStatus.power_w.toFixed(1)}W`);
+  } catch (e) {}
+
   const contextMenu = Menu.buildFromTemplate([
-    { label: statusText, enabled: false },
-    { label: `${minerStatus.temp_c}°C • ${minerStatus.power_w.toFixed(1)}W`, enabled: false },
+    { label: `Doomsday: ${statusText}`, enabled: false },
+    { label: `${minerStatus.temp_c}°C • ${minerStatus.power_w.toFixed(1)}W • ${minerStatus.hashrate_mhs.toFixed(1)} MH/s`, enabled: false },
     { type: 'separator' },
     {
       label: 'Open Dashboard',
       click: () => {
         if (mainWindow) {
+          if (mainWindow.isMinimized()) mainWindow.restore();
           mainWindow.show();
           mainWindow.focus();
         }
@@ -200,24 +250,74 @@ function updateTrayMenu() {
         stopMinerChildProcess();
         startMinerChildProcess(cfg);
         broadcastMinerUpdate();
+        updateTrayMenu();
       }
     },
     {
-      label: 'Pause for 30 Minutes',
-      click: () => pauseMining(30)
+      label: 'Pause Mining',
+      submenu: [
+        {
+          label: 'Pause for 15 Minutes',
+          click: () => pauseMining(15)
+        },
+        {
+          label: 'Pause for 30 Minutes',
+          click: () => pauseMining(30)
+        },
+        {
+          label: 'Pause for 1 Hour',
+          click: () => pauseMining(60)
+        },
+        {
+          label: 'Pause for 2 Hours',
+          click: () => pauseMining(120)
+        },
+        {
+          label: 'Resume Now',
+          click: () => resumeMining()
+        }
+      ]
     },
     {
-      label: 'Pause for 1 Hour',
-      click: () => pauseMining(60)
+      label: 'Mining Schedule...',
+      click: () => {
+        if (mainWindow) {
+          if (mainWindow.isMinimized()) mainWindow.restore();
+          mainWindow.show();
+          mainWindow.focus();
+          mainWindow.webContents.send('trigger-open-schedule');
+        }
+      }
+    },
+    { type: 'separator' },
+    {
+      label: 'Start with Windows',
+      type: 'checkbox',
+      checked: !!cfg.start_at_boot,
+      click: (menuItem) => {
+        cfg.start_at_boot = menuItem.checked;
+        saveConfig(cfg);
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('config-updated', cfg);
+        }
+      }
     },
     {
-      label: 'Resume Mining',
-      click: () => resumeMining()
+      label: 'Minimize to Tray on Close',
+      type: 'checkbox',
+      checked: !!cfg.minimize_to_tray,
+      click: (menuItem) => {
+        cfg.minimize_to_tray = menuItem.checked;
+        saveConfig(cfg);
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('config-updated', cfg);
+        }
+      }
     },
     { type: 'separator' },
     {
       label: 'Open Web Explorer',
-      click: () => shell.openExternal('https://doomsday.network')
+      click: () => shell.openExternal(cfg.node_url || 'https://doomsday.network')
     },
     {
       label: 'Check for Updates...',
@@ -230,11 +330,13 @@ function updateTrayMenu() {
         }
       }
     },
+    { type: 'separator' },
     {
-      label: 'Quit Completely',
+      label: 'Quit Doomsday Completely',
       click: () => {
         isQuitting = true;
         stopMinerChildProcess();
+        if (tray) tray.destroy();
         app.quit();
       }
     }

@@ -30,8 +30,8 @@
     <!-- VIEW 1: OOBE SETUP WIZARD -->
     <div id="oobe-view" style="display: none;">
       <div style="text-align: center; margin-bottom: 20px;">
-        <h2 style="font-family: 'Cinzel', serif; font-size: 20px; letter-spacing: 1px; color: #fff;">WELCOME TO DOOMSDAY</h2>
-        <p style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">Sovereign Proof-of-Idle-Work Network</p>
+        <h2 id="oobe-title" style="font-family: 'Cinzel', serif; font-size: 20px; letter-spacing: 1px; color: #fff;">WELCOME TO DOOMSDAY</h2>
+        <p id="oobe-subtitle" style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">Sovereign Proof-of-Idle-Work Network</p>
       </div>
 
       <!-- HARDWARE CARD -->
@@ -99,7 +99,10 @@
         </div>
       </div>
 
-      <button class="btn" id="btn-finish-oobe" style="margin-top: 10px; margin-bottom: 20px; padding: 14px;">ENTER THE NETWORK →</button>
+      <div style="display: flex; gap: 10px; margin-top: 10px; margin-bottom: 20px;">
+        <button class="btn btn-secondary" id="btn-cancel-oobe" style="display: none; padding: 14px; width: 35%;">← BACK</button>
+        <button class="btn" id="btn-finish-oobe" style="padding: 14px; flex: 1;">ENTER THE NETWORK →</button>
+      </div>
     </div>
 
     <!-- VIEW 2: MAIN DASHBOARD -->

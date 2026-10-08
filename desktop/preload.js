@@ -17,5 +17,7 @@ contextBridge.exposeInMainWorld('doomsdayAPI', {
   getCurrentVersion: () => ipcRenderer.invoke('get-current-version'),
   checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
   onUpdateAvailable: (callback) => ipcRenderer.on('update-available', (_event, updateInfo) => callback(updateInfo)),
-  onTriggerCheckUpdates: (callback) => ipcRenderer.on('trigger-check-updates', () => callback())
+  onTriggerCheckUpdates: (callback) => ipcRenderer.on('trigger-check-updates', () => callback()),
+  onTriggerOpenSchedule: (callback) => ipcRenderer.on('trigger-open-schedule', () => callback()),
+  onConfigUpdated: (callback) => ipcRenderer.on('config-updated', (_event, cfg) => callback(cfg))
 });

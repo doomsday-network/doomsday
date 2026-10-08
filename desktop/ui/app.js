@@ -28,10 +28,28 @@ document.addEventListener('DOMContentLoaded', async () => {
     showDashboard();
   }
 
-  function showOOBE() {
+  function showOOBE(isReconfig = false) {
     oobeView.style.display = 'flex';
     oobeView.style.flexDirection = 'column';
     dashboardView.style.display = 'none';
+
+    const isExistingUser = !config.first_run && !!config.wallet_address;
+    const titleEl = document.getElementById('oobe-title');
+    const subtitleEl = document.getElementById('oobe-subtitle');
+    const btnCancel = document.getElementById('btn-cancel-oobe');
+    const btnFinish = document.getElementById('btn-finish-oobe');
+
+    if (isExistingUser || isReconfig) {
+      if (titleEl) titleEl.innerText = 'DOOMSDAY SETTINGS';
+      if (subtitleEl) subtitleEl.innerText = 'Adjust background vigil, startup, and rig preferences';
+      if (btnCancel) btnCancel.style.display = 'inline-block';
+      if (btnFinish) btnFinish.innerText = 'SAVE SETTINGS →';
+    } else {
+      if (titleEl) titleEl.innerText = 'WELCOME TO DOOMSDAY';
+      if (subtitleEl) subtitleEl.innerText = 'Sovereign Proof-of-Idle-Work Network';
+      if (btnCancel) btnCancel.style.display = 'none';
+      if (btnFinish) btnFinish.innerText = 'ENTER THE NETWORK →';
+    }
 
     if (config.wallet_address) {
       document.getElementById('oobe-wallet-input').value = config.wallet_address;
@@ -42,17 +60,33 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (config.node_url) {
       document.getElementById('oobe-node-url').value = config.node_url;
     }
+    if (config.idle_mode) {
+      const modeRadio = document.querySelector(`input[name="idle-mode"][value="${config.idle_mode}"]`);
+      if (modeRadio) modeRadio.checked = true;
+    }
+    if (config.start_at_boot !== undefined) {
+      document.getElementById('check-startup').checked = !!config.start_at_boot;
+    }
+    if (config.minimize_to_tray !== undefined) {
+      document.getElementById('check-tray').checked = !!config.minimize_to_tray;
+    }
 
-    document.getElementById('btn-gen-wallet').addEventListener('click', async () => {
+    if (btnCancel) {
+      btnCancel.onclick = () => {
+        showDashboard();
+      };
+    }
+
+    document.getElementById('btn-gen-wallet').onclick = async () => {
       document.getElementById('btn-gen-wallet').innerText = 'Generating...';
       const w = await window.doomsdayAPI.generateWallet();
       if (w && w.address) {
         document.getElementById('oobe-wallet-input').value = w.address;
         document.getElementById('btn-gen-wallet').innerText = '✓ Wallet Created';
       }
-    });
+    };
 
-    document.getElementById('btn-finish-oobe').addEventListener('click', async () => {
+    btnFinish.onclick = async () => {
       const addr = document.getElementById('oobe-wallet-input').value.trim();
       if (!addr) {
         alert('Please enter or create a DOOM wallet address.');
@@ -78,7 +112,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       await window.doomsdayAPI.saveConfig(config);
       await window.doomsdayAPI.startMiner(config);
       showDashboard();
-    });
+    };
   }
 
   function showDashboard() {
@@ -88,20 +122,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('val-address').innerText = config.wallet_address;
     fetchBalance();
 
-    document.getElementById('btn-pause-30').addEventListener('click', () => {
+    document.getElementById('btn-pause-30').onclick = () => {
       window.doomsdayAPI.pauseMining(30);
-    });
-    document.getElementById('btn-pause-60').addEventListener('click', () => {
+    };
+    document.getElementById('btn-pause-60').onclick = () => {
       window.doomsdayAPI.pauseMining(60);
-    });
-    document.getElementById('btn-open-explorer').addEventListener('click', () => {
+    };
+    document.getElementById('btn-open-explorer').onclick = () => {
       const url = config.node_url || 'http://localhost:8334';
       window.doomsdayAPI.openExternal(url);
-    });
-    document.getElementById('btn-reconfigure').addEventListener('click', (e) => {
+    };
+    document.getElementById('btn-reconfigure').onclick = (e) => {
       e.preventDefault();
-      showOOBE();
-    });
+      showOOBE(true);
+    };
 
     // Force Mine Button Setup
     const btnToggleForce = document.getElementById('btn-toggle-force');
@@ -478,6 +512,22 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (e.target === modalQr) modalQr.style.display = 'none';
     });
   }
+
+  // System Tray & Background Synchronization
+  window.doomsdayAPI.onConfigUpdated((newCfg) => {
+    config = Object.assign(config, newCfg);
+    const startCheck = document.getElementById('check-startup');
+    const trayCheck = document.getElementById('check-tray');
+    if (startCheck) startCheck.checked = !!config.start_at_boot;
+    if (trayCheck) trayCheck.checked = !!config.minimize_to_tray;
+  });
+
+  window.doomsdayAPI.onTriggerOpenSchedule(() => {
+    if (modalSchedule) {
+      syncScheduleInputs();
+      modalSchedule.style.display = 'flex';
+    }
+  });
 });
 
 // Standalone SVG QR Code Generator
