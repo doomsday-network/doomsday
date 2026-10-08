@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+
+# Doomsday Local Ledger & Secrets
+data/
+wallet.json
+*.key
+*.db
+*.log
+
+# Node / Desktop
+node_modules/
+dist/
+
+# IDE & OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

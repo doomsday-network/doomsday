@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Doomsday</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@800&family=JetBrains+Mono:wght@500;700&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <!-- CUSTOM TITLEBAR -->
+  <div class="titlebar">
+    <div class="titlebar-title">
+      <span style="color: var(--primary);">⚡</span> DOOMSDAY
+    </div>
+    <div class="titlebar-controls">
+      <button class="title-btn" id="btn-minimize">−</button>
+      <button class="title-btn close-btn" id="btn-close">×</button>
+    </div>
+  </div>
+
+  <div class="app-content">
+    <!-- VIEW 1: OOBE SETUP WIZARD -->
+    <div id="oobe-view" style="display: none;">
+      <div style="text-align: center; margin-bottom: 20px;">
+        <h2 style="font-family: 'Cinzel', serif; font-size: 20px; letter-spacing: 1px; color: #fff;">WELCOME TO DOOMSDAY</h2>
+        <p style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">Sovereign Proof-of-Idle-Work Network</p>
+      </div>
+
+      <!-- HARDWARE CARD -->
+      <div class="hw-badge" id="hw-badge">
+        <div class="hw-icon">⚡</div>
+        <div>
+          <div class="hw-name" id="hw-name">Scanning hardware...</div>
+          <div class="hw-sub" id="hw-sub">Probing silicon accelerators</div>
+        </div>
+      </div>
+
+      <!-- STEP 1: WALLET -->
+      <div class="card">
+        <label style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Step 1: Your DOOM Wallet</label>
+        <div style="margin-top: 10px; display: flex; gap: 8px;">
+          <button class="btn btn-secondary" id="btn-gen-wallet" style="font-size: 12px; padding: 10px;">⚡ Create New Wallet</button>
+        </div>
+        <input type="text" class="input-field" id="oobe-wallet-input" placeholder="doom1... (or click Create New)" />
+      </div>
+
+      <!-- STEP 2: MINING MODE -->
+      <div class="card">
+        <label style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Step 2: Idle Detection Mode</label>
+        <div style="margin-top: 10px;">
+          <label class="mode-option">
+            <input type="radio" name="idle-mode" value="gamer" checked />
+            <div class="mode-info">
+              <h4>Gamer Mode (Recommended)</h4>
+              <p>Mines when idle for 3 minutes. Suspends instantly upon mouse or keyboard movement.</p>
+            </div>
+          </label>
+          <label class="mode-option">
+            <input type="radio" name="idle-mode" value="aggressive" />
+            <div class="mode-info">
+              <h4>Aggressive Mode</h4>
+              <p>Mines when idle for 60 seconds. Maximizes hash rate during short breaks.</p>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <!-- STEP 3: SYSTEM INTEGRATION -->
+      <div class="card">
+        <label style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Step 3: Background Preferences</label>
+        <label class="check-group">
+          <input type="checkbox" id="check-startup" checked />
+          <span>Launch automatically when computer starts</span>
+        </label>
+        <label class="check-group">
+          <input type="checkbox" id="check-tray" checked />
+          <span>Minimize to system tray when closed</span>
+        </label>
+      </div>
+
+      <button class="btn" id="btn-finish-oobe" style="margin-top: auto; padding: 14px;">ENTER THE NETWORK →</button>
+    </div>
+
+    <!-- VIEW 2: MAIN DASHBOARD -->
+    <div id="dashboard-view" style="display: none; height: 100%; flex-direction: column;">
+      <!-- STATUS ORB -->
+      <div class="status-container">
+        <div class="orb-glow standby" id="status-orb">
+          <span style="font-size: 30px;" id="orb-icon">🛡</span>
+        </div>
+        <div class="status-label" id="status-subtitle" style="color: var(--accent);">IDLE SENTINEL</div>
+        <div class="status-state" id="status-text">STANDING BY</div>
+      </div>
+
+      <!-- METRICS -->
+      <div class="stats-grid">
+        <div class="stat-item">
+          <div class="stat-sub">HASH SPEED</div>
+          <div class="stat-val" id="val-speed" style="color: var(--primary);">0.0 MH/s</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-sub">GPU THERMALS</div>
+          <div class="stat-val" id="val-thermals">33°C • 40W</div>
+        </div>
+      </div>
+
+      <!-- WALLET MINI CARD -->
+      <div class="card" style="padding: 14px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+          <span style="font-size: 11px; font-weight: 700; color: var(--text-muted);">PAYOUT WALLET</span>
+          <span style="font-size: 11px; color: var(--green); font-weight: 700;" id="val-balance">Loading...</span>
+        </div>
+        <div style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #fff; word-break: break-all;" id="val-address">
+          doom1...
+        </div>
+      </div>
+
+      <!-- ACTION BUTTONS -->
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px;">
+        <button class="btn btn-secondary" id="btn-pause-30" style="padding: 10px; font-size: 12px;">⏸ Pause 30m</button>
+        <button class="btn btn-secondary" id="btn-pause-60" style="padding: 10px; font-size: 12px;">⏸ Pause 1h</button>
+      </div>
+
+      <button class="btn btn-secondary" id="btn-open-explorer" style="padding: 10px; font-size: 12px; margin-bottom: 10px;">
+        🌐 Open Network Explorer
+      </button>
+
+      <div style="margin-top: auto; text-align: center;">
+        <a href="#" id="btn-reconfigure" style="font-size: 11px; color: var(--text-muted); text-decoration: none;">⚙ Settings & Reconfigure</a>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

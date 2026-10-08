@@ -1,0 +1,239 @@
+import hashlib
+import json
+import os
+import sqlite3
+import struct
+import time
+from typing import Dict, List, Optional, Tuple, Any
+from core.crypto import bits_to_target, target_to_bits, INITIAL_BITS
+from core.transaction import Transaction, TxInput, TxOutput, create_coinbase_tx, COIN
+from core.block import Block, BlockHeader, calculate_merkle_root, create_genesis_block
+from core.consensus import validate_block, calculate_next_bits, get_block_reward
+
+
+class Blockchain:
+    def __init__(self, db_path: str = "data/doomsday.db"):
+        self.db_path = db_path
+        os.makedirs(os.path.dirname(self.db_path) or ".", exist_ok=True)
+        self.blocks: List[Block] = []
+        self.utxo_set: Dict[str, Tuple[str, int]] = {}  # f"{txid}:{vout}" -> (recipient, amount)
+        self.mempool: List[Transaction] = []
+        self._init_db()
+        self._load_or_genesis()
+
+    def _init_db(self):
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS blocks (
+                    height INTEGER PRIMARY KEY,
+                    hash TEXT UNIQUE,
+                    header_json TEXT,
+                    txs_json TEXT,
+                    timestamp INTEGER
+                )
+            """)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS utxos (
+                    outpoint TEXT PRIMARY KEY,
+                    recipient TEXT,
+                    amount INTEGER
+                )
+            """)
+            conn.commit()
+
+    def _load_or_genesis(self):
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT height, hash, header_json, txs_json FROM blocks ORDER BY height ASC")
+            rows = cursor.fetchall()
+
+            if not rows:
+                print("[Blockchain] Initializing Genesis Block...")
+                genesis = create_genesis_block()
+                self._save_block_to_db(genesis, conn)
+                self.blocks.append(genesis)
+                self._apply_block_utxos(genesis)
+                print(f"[Blockchain] Genesis Block created at height 0 (Hash: {genesis.hash[:16]}...)")
+            else:
+                for row in rows:
+                    height, b_hash, h_json, t_json = row
+                    header = BlockHeader.from_dict(json.loads(h_json))
+                    txs = [Transaction.from_dict(t) for t in json.loads(t_json)]
+                    b = Block(header=header, transactions=txs, height=height)
+                    b.hash = b_hash
+                    self.blocks.append(b)
+                    self._apply_block_utxos(b)
+                print(f"[Blockchain] Loaded {len(self.blocks)} blocks from database. Tip height: {self.get_tip().height}")
+
+    def _save_block_to_db(self, block: Block, conn: sqlite3.Connection):
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT INTO blocks (height, hash, header_json, txs_json, timestamp) VALUES (?, ?, ?, ?, ?)",
+            (
+                block.height,
+                block.hash,
+                json.dumps(block.header.to_dict()),
+                json.dumps([tx.to_dict() for tx in block.transactions]),
+                block.header.timestamp
+            )
+        )
+        conn.commit()
+
+    def _apply_block_utxos(self, block: Block):
+        for tx in block.transactions:
+            if not tx.is_coinbase:
+                for inp in tx.inputs:
+                    key = f"{inp.txid}:{inp.vout}"
+                    self.utxo_set.pop(key, None)
+            for vout, out in enumerate(tx.outputs):
+                key = f"{tx.txid}:{vout}"
+                self.utxo_set[key] = (out.recipient, out.amount)
+
+    def get_tip(self) -> Block:
+        return self.blocks[-1]
+
+    def get_anchor_block(self) -> Block:
+        """Anchor for ASERT retargeting (looks back 10 blocks or to genesis)."""
+        idx = max(0, len(self.blocks) - 10)
+        return self.blocks[idx]
+
+    def get_next_bits(self) -> int:
+        if len(self.blocks) <= 1:
+            return INITIAL_BITS
+        return calculate_next_bits(self.get_tip(), self.get_anchor_block())
+
+    def create_block_template(self, miner_address: str) -> Dict[str, Any]:
+        """Generate a complete mining job template for worker rigs."""
+        tip = self.get_tip()
+        height = tip.height + 1
+        bits = self.get_next_bits()
+        target = bits_to_target(bits)
+        reward = get_block_reward(height)
+
+        # Include valid transactions from mempool
+        txs_to_include = list(self.mempool)
+        tx_fees = 0
+        valid_txs = []
+        temp_utxos = dict(self.utxo_set)
+
+        for tx in txs_to_include:
+            total_in = 0
+            valid = True
+            for inp in tx.inputs:
+                key = f"{inp.txid}:{inp.vout}"
+                if key not in temp_utxos:
+                    valid = False
+                    break
+                total_in += temp_utxos[key][1]
+            if valid:
+                total_out = sum(o.amount for o in tx.outputs)
+                if total_in >= total_out:
+                    tx_fees += (total_in - total_out)
+                    for inp in tx.inputs:
+                        del temp_utxos[f"{inp.txid}:{inp.vout}"]
+                    valid_txs.append(tx)
+
+        coinbase = create_coinbase_tx(
+            recipient=miner_address,
+            amount_sparks=reward + tx_fees,
+            block_height=height
+        )
+
+        all_txs = [coinbase] + valid_txs
+        merkle = calculate_merkle_root(all_txs)
+        now_ts = max(tip.header.timestamp + 1, int(time.time()))
+
+        header = BlockHeader(
+            version=1,
+            prev_hash=tip.hash,
+            merkle_root=merkle,
+            timestamp=now_ts,
+            bits=bits,
+            nonce=0,
+            miner_address=miner_address
+        )
+
+        prefix = header.get_prefix_bytes()
+        seed = hashlib.sha256(prefix).digest()
+        seed_u64 = list(struct.unpack('<4Q', seed))
+
+        # Upper 64 bits of target for GPU filter
+        target_high = (target >> 192) & 0xFFFFFFFFFFFFFFFF
+
+        return {
+            "height": height,
+            "prev_hash": tip.hash,
+            "merkle_root": merkle,
+            "timestamp": now_ts,
+            "bits": bits,
+            "target_hex": hex(target),
+            "target_high": target_high,
+            "header_prefix_hex": prefix.hex(),
+            "seed_u64": seed_u64,
+            "miner_address": miner_address,
+            "transactions": [tx.to_dict() for tx in all_txs]
+        }
+
+    def add_block_candidate(
+        self,
+        height: int,
+        nonce: int,
+        miner_address: str,
+        miner_name: str = "Rig-Default",
+        timestamp: Optional[int] = None
+    ) -> Tuple[bool, str]:
+        """Validate and commit a mined block candidate from a worker."""
+        tip = self.get_tip()
+        if height != tip.height + 1:
+            return False, f"Stale block height: expected {tip.height + 1}, got {height}"
+
+        # Reconstruct block from template
+        template = self.create_block_template(miner_address)
+        block_time = timestamp if timestamp is not None else template["timestamp"]
+
+        header = BlockHeader(
+            version=1,
+            prev_hash=template["prev_hash"],
+            merkle_root=template["merkle_root"],
+            timestamp=block_time,
+            bits=template["bits"],
+            nonce=nonce,
+            miner_address=miner_address
+        )
+        txs = [Transaction.from_dict(t) for t in template["transactions"]]
+        block = Block(header=header, transactions=txs, height=height)
+
+        # Validate with consensus engine
+        ok, reason = validate_block(block, tip, self.utxo_set, expected_bits=template["bits"])
+        if not ok:
+            return False, f"Consensus check failed: {reason}"
+
+        # Commit to ledger
+        with sqlite3.connect(self.db_path) as conn:
+            self._save_block_to_db(block, conn)
+
+        self.blocks.append(block)
+        self._apply_block_utxos(block)
+
+        # Remove committed transactions from mempool
+        committed_ids = {tx.txid for tx in block.transactions}
+        self.mempool = [t for t in self.mempool if t.txid not in committed_ids]
+
+        print(f"\n[Blockchain] [*] Block #{block.height} minted by [{miner_name}] ({miner_address[:12]}...) | Nonce: {nonce} | Hash: {block.hash[:16]}...")
+        return True, "Accepted"
+
+    def get_balance(self, address: str) -> int:
+        """Return spendable balance in Sparks for a given address."""
+        total = 0
+        for outpoint, (recipient, amount) in self.utxo_set.items():
+            if recipient == address:
+                total += amount
+        return total
+
+    def add_transaction_to_mempool(self, tx: Transaction) -> Tuple[bool, str]:
+        """Validate and admit a standard user transaction to mempool."""
+        if not validate_transaction(tx, self.utxo_set):
+            return False, "Invalid transaction signatures or double spend"
+        self.mempool.append(tx)
+        return True, "Added to mempool"

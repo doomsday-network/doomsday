@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>⚡ Doomsday Network | Live Block Explorer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=JetBrains+Mono:wght@400;600;800&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #09090b;
+      --card-bg: #121217;
+      --card-border: #272730;
+      --primary: #ff3344;
+      --primary-glow: rgba(255, 51, 68, 0.35);
+      --accent: #ff9900;
+      --text: #f4f4f5;
+      --text-muted: #8e8e9f;
+      --green: #10b981;
+      --green-glow: rgba(16, 185, 129, 0.3);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+      background-image: 
+        radial-gradient(circle at 50% 0%, rgba(255, 51, 68, 0.12) 0%, transparent 60%),
+        linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+      background-size: 100% 100%, 32px 32px, 32px 32px;
+    }
+
+    .container {
+      max-width: 1300px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    /* HEADER */
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 24px;
+      border-bottom: 1px solid var(--card-border);
+      margin-bottom: 28px;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .logo-badge {
+      background: linear-gradient(135deg, #ff1a2e, #880011);
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      box-shadow: 0 0 20px var(--primary-glow);
+    }
+    .brand h1 {
+      font-family: 'Cinzel', serif;
+      font-size: 26px;
+      letter-spacing: 2px;
+      color: #fff;
+    }
+    .brand .tagline {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--primary);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .clock-widget {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      padding: 10px 18px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .clock-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--primary);
+      box-shadow: 0 0 10px var(--primary);
+      animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse {
+      0% { opacity: 0.4; }
+      50% { opacity: 1; }
+      100% { opacity: 0.4; }
+    }
+
+    /* METRIC CARDS */
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 18px;
+      margin-bottom: 32px;
+    }
+    .metric-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 20px;
+      position: relative;
+      overflow: hidden;
+    }
+    .metric-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0; height: 2px;
+      background: linear-gradient(90deg, transparent, var(--primary), transparent);
+    }
+    .metric-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+    .metric-value {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 28px;
+      font-weight: 800;
+      color: #fff;
+    }
+    .metric-sub {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 6px;
+    }
+
+    /* SECTION HEADINGS */
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+    .section-title {
+      font-size: 18px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: #fff;
+    }
+
+    /* WORKERS GRID */
+    .workers-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+      gap: 18px;
+      margin-bottom: 36px;
+    }
+    .worker-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 20px;
+      transition: border-color 0.2s;
+    }
+    .worker-card.mining {
+      border-color: rgba(255, 51, 68, 0.4);
+      box-shadow: 0 0 15px rgba(255, 51, 68, 0.08);
+    }
+    .worker-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+    .worker-name {
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 700;
+      font-size: 16px;
+    }
+    .status-badge {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-weight: 600;
+    }
+    .status-mining {
+      background: rgba(255, 51, 68, 0.15);
+      color: var(--primary);
+      border: 1px solid rgba(255, 51, 68, 0.3);
+    }
+    .status-idle {
+      background: rgba(255, 153, 0, 0.15);
+      color: var(--accent);
+      border: 1px solid rgba(255, 153, 0, 0.3);
+    }
+    .worker-stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 10px;
+      margin-top: 14px;
+      padding-top: 14px;
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+    }
+    .stat-label { font-size: 11px; color: var(--text-muted); }
+    .stat-val { font-family: 'JetBrains Mono', monospace; font-size: 14px; font-weight: 600; }
+
+    /* BLOCKS TABLE */
+    .table-container {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      overflow-x: auto;
+      margin-bottom: 36px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 14px;
+    }
+    th {
+      background: rgba(255, 255, 255, 0.02);
+      color: var(--text-muted);
+      padding: 14px 18px;
+      font-weight: 600;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-bottom: 1px solid var(--card-border);
+    }
+    td {
+      padding: 16px 18px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      font-family: 'JetBrains Mono', monospace;
+    }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(255, 255, 255, 0.02); }
+    .hash-cell { color: var(--primary); }
+    .reward-cell { color: var(--green); font-weight: 600; }
+
+    /* WALLET SECTION */
+    .wallet-box {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 24px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      align-items: center;
+    }
+    .input-group {
+      flex: 1;
+      min-width: 280px;
+    }
+    input {
+      width: 100%;
+      background: #09090b;
+      border: 1px solid var(--card-border);
+      color: #fff;
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-family: 'JetBrains Mono', monospace;
+      outline: none;
+    }
+    input:focus { border-color: var(--primary); }
+    button {
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: 'Inter', sans-serif;
+      transition: opacity 0.2s;
+    }
+    button:hover { opacity: 0.9; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- HEADER -->
+    <header>
+      <div class="brand">
+        <div class="logo-badge">⚡</div>
+        <div>
+          <h1>DOOMSDAY NETWORK</h1>
+          <div class="tagline">Proof-of-Idle-Work • Layer-1 Sovereign Silicon</div>
+        </div>
+      </div>
+      <div class="clock-widget">
+        <div class="clock-dot"></div>
+        <span>DOOMSDAY CLOCK: <strong>90s TO MIDNIGHT</strong></span>
+      </div>
+    </header>
+
+    <!-- METRICS -->
+    <div class="metrics-grid">
+      <div class="metric-card">
+        <div class="metric-title">Block Height</div>
+        <div class="metric-value" id="val-height">#0</div>
+        <div class="metric-sub" id="val-tip">Genesis Loaded</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-title">Cluster Hashrate</div>
+        <div class="metric-value" id="val-hashrate">0.00 MH/s</div>
+        <div class="metric-sub" id="val-workers">0 Active Rigs</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-title">Circulating Supply</div>
+        <div class="metric-value" id="val-supply">50.0 DOOM</div>
+        <div class="metric-sub">Max: 21,000,000 DOOM</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-title">Target Difficulty</div>
+        <div class="metric-value" id="val-diff">0x1e0ffff0</div>
+        <div class="metric-sub">ASERT Auto-Retarget (20s)</div>
+      </div>
+    </div>
+
+    <!-- WORKERS SECTION -->
+    <div class="section-header">
+      <div class="section-title">🖥️ Connected GPU Rigs</div>
+      <div style="font-size: 12px; color: var(--text-muted);">Real-time Telemetry</div>
+    </div>
+    <div class="workers-grid" id="workers-list">
+      <!-- Injected dynamically -->
+      <div class="worker-card" style="text-align: center; color: var(--text-muted); padding: 40px;">
+        Awaiting idle sentinel connections...
+      </div>
+    </div>
+
+    <!-- RECENT BLOCKS -->
+    <div class="section-header">
+      <div class="section-title">📦 Recent Mined Blocks</div>
+      <div style="font-size: 12px; color: var(--text-muted);" id="blocks-count">Latest blocks</div>
+    </div>
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>Height</th>
+            <th>Block Hash</th>
+            <th>Mined By</th>
+            <th>Nonce</th>
+            <th>Reward</th>
+            <th>Time</th>
+          </tr>
+        </thead>
+        <tbody id="blocks-table-body">
+          <!-- Injected dynamically -->
+        </tbody>
+      </table>
+    </div>
+
+    <!-- WALLET BALANCE CHECKER -->
+    <div class="section-header">
+      <div class="section-title">👛 Wallet Ledger Inspector</div>
+    </div>
+    <div class="wallet-box">
+      <div class="input-group">
+        <input type="text" id="wallet-input" placeholder="Enter DOOM address (doom1...)" />
+      </div>
+      <button onclick="checkBalance()">Check Balance</button>
+      <div id="balance-result" style="font-family: 'JetBrains Mono', monospace; font-size: 16px; font-weight: 700; color: var(--green);"></div>
+    </div>
+  </div>
+
+  <script>
+    // Live WebSocket connection
+    let ws;
+    function connectWS() {
+      const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      ws = new WebSocket(`${proto}//${window.location.host}/ws`);
+
+      ws.onopen = () => console.log('Connected to Doomsday Node WebSocket');
+      ws.onmessage = (event) => {
+        const msg = JSON.parse(event.data);
+        if (msg.type === 'init' || msg.type === 'new_block') {
+          fetchStatus();
+          fetchBlocks();
+        } else if (msg.type === 'miners_update') {
+          renderMiners(msg.data);
+        }
+      };
+      ws.onclose = () => setTimeout(connectWS, 2000);
+    }
+
+    async function fetchStatus() {
+      try {
+        const res = await fetch('/status');
+        const data = await res.json();
+        document.getElementById('val-height').innerText = `#${data.height}`;
+        document.getElementById('val-tip').innerText = `${data.tip_hash.slice(0, 16)}...`;
+        document.getElementById('val-hashrate').innerText = `${data.cluster_hashrate_mhs.toLocaleString()} MH/s`;
+        document.getElementById('val-workers').innerText = `${data.active_workers} Active Rig${data.active_workers === 1 ? '' : 's'}`;
+        document.getElementById('val-supply').innerText = `${data.total_mined_doom.toLocaleString()} DOOM`;
+        document.getElementById('val-diff').innerText = data.difficulty_bits;
+      } catch (e) {
+        console.error('Error fetching status', e);
+      }
+    }
+
+    async function fetchBlocks() {
+      try {
+        const res = await fetch('/blocks?limit=15');
+        const blocks = await res.json();
+        const tbody = document.getElementById('blocks-table-body');
+        tbody.innerHTML = '';
+        blocks.forEach(b => {
+          const row = document.createElement('tr');
+          const miner = b.header.miner_address ? `${b.header.miner_address.slice(0, 14)}...` : 'Genesis';
+          const timeStr = new Date(b.header.timestamp * 1000).toLocaleTimeString();
+          row.innerHTML = `
+            <td style="color: #fff; font-weight: 700;">#${b.height}</td>
+            <td class="hash-cell">${b.hash.slice(0, 18)}...</td>
+            <td>${miner}</td>
+            <td>${b.header.nonce.toLocaleString()}</td>
+            <td class="reward-cell">+50.0 DOOM</td>
+            <td style="color: var(--text-muted);">${timeStr}</td>
+          `;
+          tbody.appendChild(row);
+        });
+      } catch (e) {
+        console.error('Error fetching blocks', e);
+      }
+    }
+
+    function renderMiners(miners) {
+      const container = document.getElementById('workers-list');
+      if (!miners || miners.length === 0) {
+        container.innerHTML = '<div class="worker-card" style="text-align: center; color: var(--text-muted); padding: 40px;">Awaiting idle sentinel connections...</div>';
+        return;
+      }
+      container.innerHTML = '';
+      miners.forEach(m => {
+        const isMining = m.state === 'MINING';
+        const card = document.createElement('div');
+        card.className = `worker-card ${isMining ? 'mining' : ''}`;
+        card.innerHTML = `
+          <div class="worker-header">
+            <div>
+              <div class="worker-name">${m.name}</div>
+              <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">${m.device}</div>
+            </div>
+            <span class="status-badge ${isMining ? 'status-mining' : 'status-idle'}">${m.state}</span>
+          </div>
+          <div class="worker-stats">
+            <div>
+              <div class="stat-label">SPEED</div>
+              <div class="stat-val" style="color: var(--primary);">${m.hashrate_mhs.toLocaleString()} MH/s</div>
+            </div>
+            <div>
+              <div class="stat-label">TEMP / POWER</div>
+              <div class="stat-val">${m.temp_c}°C / ${m.power_w}W</div>
+            </div>
+            <div>
+              <div class="stat-label">LOAD</div>
+              <div class="stat-val">${m.util_pct}% Util</div>
+            </div>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    async function checkBalance() {
+      const addr = document.getElementById('wallet-input').value.trim();
+      if (!addr) return;
+      try {
+        const res = await fetch(`/wallet/${addr}`);
+        const data = await res.json();
+        document.getElementById('balance-result').innerText = `Balance: ${data.balance_doom.toLocaleString()} DOOM`;
+      } catch (e) {
+        document.getElementById('balance-result').innerText = `Error checking balance`;
+      }
+    }
+
+    // Initial load
+    fetchStatus();
+    fetchBlocks();
+    connectWS();
+    setInterval(fetchStatus, 3000);
+  </script>
+</body>
+</html>

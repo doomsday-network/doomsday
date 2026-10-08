@@ -1,0 +1,44 @@
+{
+  "name": "doomsday-desktop",
+  "version": "1.0.0",
+  "description": "Doomsday Network - Proof-of-Idle-Work Desktop Client",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder"
+  },
+  "keywords": [
+    "cryptocurrency",
+    "mining",
+    "pow",
+    "cuda",
+    "idle-mining",
+    "doomsday"
+  ],
+  "author": "Doomsday Network Contributors",
+  "license": "MIT",
+  "dependencies": {},
+  "devDependencies": {
+    "electron": "^33.2.1",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "org.doomsday.desktop",
+    "productName": "Doomsday",
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": "nsis"
+    },
+    "mac": {
+      "target": "dmg",
+      "category": "public.app-category.utilities"
+    },
+    "linux": {
+      "target": "AppImage",
+      "category": "Utility"
+    }
+  }
+}
