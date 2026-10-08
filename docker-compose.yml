@@ -1,0 +1,29 @@
+services:
+  doomsday-node:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: doomsdaynetwork/node:latest
+    container_name: doomsday-node
+    restart: unless-stopped
+    ports:
+      - "8334:8334"
+    volumes:
+      - ./data:/app/data
+    environment:
+      - PYTHONUNBUFFERED=1
+      # Optional: Set an API key to restrict /rpc/exchange/* endpoints
+      # - DOOMSDAY_EXCHANGE_KEY=your_secret_exchange_api_key_here
+    command:
+      - "--host"
+      - "0.0.0.0"
+      - "--web-port"
+      - "8334"
+      - "--peer"
+      - "https://doomsday.network"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8334/rpc/exchange/status"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s

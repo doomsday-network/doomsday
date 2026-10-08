@@ -4,7 +4,7 @@ import json
 import os
 import time
 from typing import Dict, Any, List, Optional
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Header, Depends
 from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -98,6 +98,30 @@ class SendTxRequest(BaseModel):
 
 class FaucetClaimRequest(BaseModel):
     recipient_address: str
+
+
+class ExchangeWithdrawRequest(BaseModel):
+    from_address: str
+    private_key_wif: str
+    to_address: str
+    amount_doom: float
+    fee_doom: float = 0.001
+
+
+class ExchangeRawTxRequest(BaseModel):
+    transaction: Dict[str, Any]
+
+
+EXCHANGE_API_KEY = os.environ.get("DOOMSDAY_EXCHANGE_KEY", "").strip()
+
+
+def verify_exchange_auth(x_api_key: Optional[str] = Header(None)):
+    """Enforce X-API-KEY header if DOOMSDAY_EXCHANGE_KEY is configured."""
+    if EXCHANGE_API_KEY and x_api_key != EXCHANGE_API_KEY:
+        raise HTTPException(
+            status_code=401,
+            detail="Unauthorized: Invalid or missing X-API-KEY header for exchange RPC"
+        )
 
 
 class P2PHandshakeRequest(BaseModel):
@@ -545,6 +569,199 @@ async def claim_faucet(req: FaucetClaimRequest):
     }
 
 
+# ==============================================================================
+# EXCHANGE DAEMON & CEX INTEGRATION RPC ENDPOINTS
+# ==============================================================================
+
+@app.get("/rpc/exchange/status", dependencies=[Depends(verify_exchange_auth)])
+def exchange_status():
+    """Health, sync status, and block tip inspection for automated exchange daemons."""
+    tip = chain.get_tip()
+    now = int(time.time())
+    is_synced = (now - tip.header.timestamp < 3600) or (len(p2p.peers) == 0 and len(chain.blocks) > 0)
+    connected_peer_count = len([p for p in p2p.peers.values() if p.is_connected])
+    return {
+        "status": "online",
+        "version": "1.0.0",
+        "network": "mainnet",
+        "synced": is_synced,
+        "chain_height": tip.height,
+        "best_block_hash": tip.hash,
+        "tip_timestamp": tip.header.timestamp,
+        "difficulty_bits": hex(tip.header.bits),
+        "mempool_size": len(chain.mempool),
+        "peer_count": connected_peer_count,
+        "p2p_node_id": p2p.node_id
+    }
+
+
+@app.post("/rpc/exchange/create_address", dependencies=[Depends(verify_exchange_auth)])
+def exchange_create_address():
+    """Generate a fresh deposit keypair and address for customer accounts."""
+    from core.crypto import generate_keypair, private_key_to_wif, public_key_to_address
+    priv, pub = generate_keypair()
+    addr = public_key_to_address(pub)
+    wif = private_key_to_wif(priv)
+    return {
+        "address": addr,
+        "private_key_wif": wif,
+        "created_at": int(time.time())
+    }
+
+
+@app.get("/rpc/exchange/address/{address}", dependencies=[Depends(verify_exchange_auth)])
+def exchange_get_address(address: str):
+    """Query balance and active UTXOs for an exchange account or hot wallet."""
+    sparks = chain.get_balance(address)
+    utxos = chain.get_address_utxos(address)
+    return {
+        "address": address,
+        "balance_doom": sparks / COIN,
+        "balance_sparks": sparks,
+        "utxo_count": len(utxos),
+        "utxos": utxos
+    }
+
+
+@app.get("/rpc/exchange/block/{identifier}", dependencies=[Depends(verify_exchange_auth)])
+def exchange_get_block(identifier: str):
+    """Scan block by height or hash with parsed transaction list and confirmation depth."""
+    b = chain.get_block(identifier)
+    if not b:
+        raise HTTPException(status_code=404, detail=f"Block '{identifier}' not found in ledger")
+    tip = chain.get_tip()
+    confirmations = tip.height - b.height + 1
+    txs_data = []
+    for tx in b.transactions:
+        txs_data.append({
+            "txid": tx.txid,
+            "is_coinbase": tx.is_coinbase,
+            "inputs": [{"txid": inp.txid, "vout": inp.vout} for inp in tx.inputs],
+            "outputs": [{
+                "recipient": out.recipient,
+                "amount_doom": out.amount / COIN,
+                "amount_sparks": out.amount
+            } for out in tx.outputs]
+        })
+    return {
+        "height": b.height,
+        "hash": b.hash,
+        "prev_hash": b.header.prev_hash,
+        "merkle_root": b.header.merkle_root,
+        "timestamp": b.header.timestamp,
+        "nonce": b.header.nonce,
+        "bits": hex(b.header.bits),
+        "miner_address": b.header.miner_address,
+        "confirmations": confirmations,
+        "tx_count": len(b.transactions),
+        "transactions": txs_data
+    }
+
+
+@app.get("/rpc/exchange/tx/{txid}", dependencies=[Depends(verify_exchange_auth)])
+def exchange_get_tx(txid: str):
+    """Retrieve transaction confirmation count and block metadata."""
+    tx, b, confs = chain.get_transaction(txid)
+    if not tx:
+        raise HTTPException(status_code=404, detail=f"Transaction '{txid}' not found in ledger or mempool")
+    status = "confirmed" if b is not None else "mempool"
+    return {
+        "txid": tx.txid,
+        "status": status,
+        "confirmed": (status == "confirmed"),
+        "confirmations": confs,
+        "block_height": b.height if b else None,
+        "block_hash": b.hash if b else None,
+        "timestamp": b.header.timestamp if b else int(time.time()),
+        "is_coinbase": tx.is_coinbase,
+        "inputs": [{"txid": inp.txid, "vout": inp.vout} for inp in tx.inputs],
+        "outputs": [{
+            "recipient": out.recipient,
+            "amount_doom": out.amount / COIN,
+            "amount_sparks": out.amount
+        } for out in tx.outputs]
+    }
+
+
+@app.post("/rpc/exchange/withdraw", dependencies=[Depends(verify_exchange_auth)])
+async def exchange_withdraw(req: ExchangeWithdrawRequest):
+    """Automated hot wallet withdrawal processing and network wire broadcast."""
+    from core.crypto import private_key_from_wif, public_key_to_address
+    try:
+        priv = private_key_from_wif(req.private_key_wif)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Invalid private key WIF: {e}")
+
+    sender_derived = public_key_to_address(priv.public_key())
+    if sender_derived != req.from_address:
+        raise HTTPException(status_code=400, detail="Private key does not match from_address")
+
+    amount_sparks = int(round(req.amount_doom * COIN))
+    if amount_sparks <= 0:
+        raise HTTPException(status_code=400, detail="amount_doom must be strictly greater than 0")
+
+    fee_sparks = int(round(max(0.0001, req.fee_doom) * COIN))
+    total_required = amount_sparks + fee_sparks
+
+    avail = chain.get_balance(req.from_address)
+    if avail < total_required:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Insufficient balance in hot wallet: available {avail/COIN} DOOM, needed {total_required/COIN} DOOM (including {fee_sparks/COIN} fee)"
+        )
+
+    inputs = []
+    accum = 0
+    for outpoint, (rcpt, amt) in chain.utxo_set.items():
+        if rcpt == req.from_address:
+            txid, vout = outpoint.split(':')
+            inputs.append(TxInput(txid=txid, vout=int(vout)))
+            accum += amt
+            if accum >= total_required:
+                break
+
+    outputs = [TxOutput(recipient=req.to_address, amount=amount_sparks)]
+    change = accum - total_required
+    if change > 0:
+        outputs.append(TxOutput(recipient=req.from_address, amount=change))
+
+    tx = Transaction(inputs=inputs, outputs=outputs)
+    for idx in range(len(inputs)):
+        tx.sign_input(idx, priv)
+
+    ok, reason = chain.add_transaction_to_mempool(tx)
+    if not ok:
+        raise HTTPException(status_code=400, detail=f"Transaction rejected: {reason}")
+
+    await broadcast_event("new_tx", tx.to_dict())
+    asyncio.create_task(p2p.broadcast_tx(tx))
+    return {
+        "status": "broadcasted",
+        "txid": tx.txid,
+        "from_address": req.from_address,
+        "to_address": req.to_address,
+        "amount_doom": req.amount_doom,
+        "fee_doom": fee_sparks / COIN
+    }
+
+
+@app.post("/rpc/exchange/broadcast_raw", dependencies=[Depends(verify_exchange_auth)])
+async def exchange_broadcast_raw(req: ExchangeRawTxRequest):
+    """Broadcast an externally pre-signed transaction to the network."""
+    try:
+        tx = Transaction.from_dict(req.transaction)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Malformed transaction structure: {e}")
+
+    ok, reason = chain.add_transaction_to_mempool(tx)
+    if not ok:
+        raise HTTPException(status_code=400, detail=f"Transaction rejected: {reason}")
+
+    await broadcast_event("new_tx", tx.to_dict())
+    asyncio.create_task(p2p.broadcast_tx(tx))
+    return {"status": "broadcasted", "txid": tx.txid}
+
+
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
@@ -596,7 +813,10 @@ async def on_startup():
     p2p.start()
 
 
-def start_server(host: str = "0.0.0.0", port: int = 8334, peers: Optional[List[str]] = None):
+def start_server(host: str = "0.0.0.0", port: int = 8334, peers: Optional[List[str]] = None, exchange_key: Optional[str] = None):
+    global EXCHANGE_API_KEY
+    if exchange_key:
+        EXCHANGE_API_KEY = exchange_key
     import uvicorn
     p2p.listen_port = port
     if peers:
@@ -606,6 +826,10 @@ def start_server(host: str = "0.0.0.0", port: int = 8334, peers: Optional[List[s
     print(f"[*] DOOMSDAY NODE ACTIVE: http://{host}:{port}")
     print(f"P2P Wire Protocol: Node ID [{p2p.node_id}] | Port {port}")
     print(f"Explorer Dashboard: http://localhost:{port}")
+    if EXCHANGE_API_KEY:
+        print(f"Exchange RPC Auth: ENFORCED (Key: {EXCHANGE_API_KEY[:4]}***)")
+    else:
+        print(f"Exchange RPC Auth: OPEN (Set DOOMSDAY_EXCHANGE_KEY or --exchange-key to restrict)")
     print(f"=======================================================\n")
     uvicorn.run(app, host=host, port=port, log_level="warning")
 
@@ -615,5 +839,6 @@ if __name__ == '__main__':
     parser.add_argument("--host", default="0.0.0.0", help="Binding host")
     parser.add_argument("--web-port", type=int, default=8334, help="HTTP/Explorer port")
     parser.add_argument("--peer", action="append", default=[], help="Connect to specific P2P peer(s)")
+    parser.add_argument("--exchange-key", default=None, help="Set API key for /rpc/exchange endpoints")
     args = parser.parse_args()
-    start_server(host=args.host, port=args.web_port, peers=args.peer)
+    start_server(host=args.host, port=args.web_port, peers=args.peer, exchange_key=args.exchange_key)

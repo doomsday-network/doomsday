@@ -273,6 +273,56 @@ class Blockchain:
                 total += amount
         return total
 
+    def get_address_utxos(self, address: str) -> List[Dict[str, Any]]:
+        """Return list of active unspent outputs for an address."""
+        results = []
+        for outpoint, (recipient, amount_sparks) in self.utxo_set.items():
+            if recipient == address:
+                txid, vout = outpoint.split(':')
+                results.append({
+                    "txid": txid,
+                    "vout": int(vout),
+                    "amount_sparks": amount_sparks,
+                    "amount_doom": amount_sparks / COIN
+                })
+        return results
+
+    def get_block(self, identifier: Any) -> Optional[Block]:
+        """Lookup block by height (int) or block hash (str)."""
+        if isinstance(identifier, int):
+            if 0 <= identifier < len(self.blocks):
+                return self.blocks[identifier]
+            return None
+        if isinstance(identifier, str):
+            if identifier.isdigit():
+                h = int(identifier)
+                if 0 <= h < len(self.blocks):
+                    return self.blocks[h]
+            for b in reversed(self.blocks):
+                if b.hash == identifier or b.hash.startswith(identifier):
+                    return b
+        return None
+
+    def get_transaction(self, txid: str) -> Tuple[Optional[Transaction], Optional[Block], int]:
+        """
+        Lookup transaction by txid.
+        Returns: (transaction, block_found_in, confirmations)
+        If in mempool: (transaction, None, 0)
+        If not found: (None, None, 0)
+        """
+        for tx in self.mempool:
+            if tx.txid == txid:
+                return tx, None, 0
+
+        tip_height = self.get_tip().height
+        for b in reversed(self.blocks):
+            for tx in b.transactions:
+                if tx.txid == txid:
+                    confirmations = tip_height - b.height + 1
+                    return tx, b, confirmations
+
+        return None, None, 0
+
     def add_transaction_to_mempool(self, tx: Transaction) -> Tuple[bool, str]:
         """Validate and admit a standard user transaction to mempool."""
         if not validate_transaction(tx, self.utxo_set):
