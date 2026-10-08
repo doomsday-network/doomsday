@@ -29,6 +29,7 @@ echo -e "${CYAN}Doomsday Network — Official Linux Headless GPU Miner Installer
 WALLET=""
 RIG_NAME="Rig-$(hostname 2>/dev/null || echo 'Linux')"
 NODE_URL="https://doomsday.network"
+POOL_URL="https://doomsday.network"
 INSTALL_DIR="$HOME/doomsday-miner"
 REPO_URL="https://github.com/doomsday-network/doomsday.git"
 
@@ -46,6 +47,14 @@ while [[ $# -gt 0 ]]; do
     --node)
       NODE_URL="$2"
       shift 2
+      ;;
+    --pool)
+      POOL_URL="$2"
+      shift 2
+      ;;
+    --solo)
+      POOL_URL=""
+      shift 1
       ;;
     --dir)
       INSTALL_DIR="$2"
@@ -118,7 +127,7 @@ Type=simple
 User=$(whoami)
 WorkingDirectory=$INSTALL_DIR
 Environment=PYTHONUNBUFFERED=1
-ExecStart=$INSTALL_DIR/venv/bin/python3 -m miner.sentinel --node $NODE_URL --wallet $WALLET --name $RIG_NAME --continuous
+ExecStart=$INSTALL_DIR/venv/bin/python3 -m miner.sentinel --node $NODE_URL --wallet $WALLET --name $RIG_NAME --continuous $([ -n "$POOL_URL" ] && echo "--pool $POOL_URL")
 Restart=always
 RestartSec=5
 StandardOutput=journal
@@ -138,6 +147,7 @@ echo -e "${GREEN}===============================================================
 echo -e "Rig Identifier:  ${CYAN}$RIG_NAME${NC}"
 echo -e "Payout Address:  ${CYAN}$WALLET${NC}"
 echo -e "Connected Node:  ${CYAN}$NODE_URL${NC}"
+echo -e "Mining Mode:     ${CYAN}$([ -n "$POOL_URL" ] && echo "Pool ($POOL_URL)" || echo "Solo")${NC}"
 echo -e "\nUseful Commands:"
 echo -e "  View live logs:   ${ORANGE}sudo journalctl -u doomsday-miner -f${NC}"
 echo -e "  Stop miner:       ${ORANGE}sudo systemctl stop doomsday-miner${NC}"

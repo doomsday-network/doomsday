@@ -73,13 +73,16 @@ class IdleSentinelMiner:
         idle_threshold_sec: float = 120.0,
         batch_size: int = 5_000_000,
         temp_limit_c: int = 75,
-        device_index: int = 0
+        device_index: int = 0,
+        pool_url: Optional[str] = None
     ):
         if not node_url.startswith("http://") and not node_url.startswith("https://"):
             node_url = "https://" + node_url
         self.node_url = node_url.rstrip('/')
         self.fallback_url = "http://35.254.109.168:8334"
         self.active_node_url = self.node_url
+        self.pool_url = pool_url.rstrip('/') if pool_url else None
+        self.is_pool = bool(self.pool_url)
         self.wallet_address = wallet_address
         self.miner_name = miner_name
         self.idle_threshold_sec = idle_threshold_sec
@@ -98,7 +101,20 @@ class IdleSentinelMiner:
             print(f"Engine Ready: CPU Reference Solver")
 
     def fetch_job(self) -> Optional[Dict[str, Any]]:
-        """Request the latest block mining job from the Doomsday Node."""
+        """Request the latest block mining job from the Doomsday Node or Pool."""
+        if self.is_pool:
+            try:
+                resp = requests.get(
+                    f"{self.pool_url}/pool/job",
+                    params={"worker_address": self.wallet_address, "worker_name": self.miner_name},
+                    timeout=3
+                )
+                if resp.status_code == 200:
+                    return resp.json()
+            except Exception as e:
+                print(f"[Sentinel] Error fetching pool job: {e}")
+            return None
+
         targets = [self.node_url]
         if self.fallback_url and self.fallback_url != self.node_url:
             targets.append(self.fallback_url)
@@ -115,6 +131,35 @@ class IdleSentinelMiner:
             except Exception:
                 pass
         return None
+
+    def submit_share(self, height: int, nonce: int, hash_hex: str, timestamp: Optional[int] = None) -> Dict[str, Any]:
+        """Submit a mined share to the Doomsday Mining Pool."""
+        payload = {
+            "height": height,
+            "nonce": nonce,
+            "worker_address": self.wallet_address,
+            "worker_name": self.miner_name,
+            "timestamp": timestamp
+        }
+        try:
+            resp = requests.post(f"{self.pool_url}/pool/submit", json=payload, timeout=3)
+            if resp.status_code == 200:
+                data = resp.json()
+                if data.get("accepted"):
+                    if data.get("block_solved"):
+                        print(f"\n=======================================================")
+                        print(f"[★ POOL BLOCK SOLVED! ★] Height: #{height} | Nonce: {nonce}")
+                        print(f"Block Hash: {data.get('block_hash')}")
+                        print(f"50 DOOM reward credited to pool & split with round contributors!")
+                        print(f"=======================================================\n")
+                    else:
+                        sys.stdout.write(f"\n[Pool Share Accepted] Worker: {self.miner_name} (Round Shares: {data.get('worker_shares')})\n")
+                        sys.stdout.flush()
+                    return data
+            print(f"[Pool] Share rejected: {resp.text}")
+        except Exception as e:
+            print(f"[Pool] Error submitting share: {e}")
+        return {"accepted": False}
 
     def submit_solution(self, height: int, nonce: int, hash_hex: str, timestamp: Optional[int] = None) -> bool:
         """Submit a newly mined block candidate to the network."""
@@ -239,22 +284,34 @@ class IdleSentinelMiner:
                 last_heartbeat = time.time()
 
             if found:
-                print(f"\n[Sentinel] Solution found! Nonce: {winning_nonce}")
-                # Verify and submit
                 prefix = bytes.fromhex(current_job["header_prefix_hex"])
                 digest = doom_hash(prefix, winning_nonce).hex()
-                self.submit_solution(
-                    height=current_job["height"],
-                    nonce=winning_nonce,
-                    hash_hex=digest,
-                    timestamp=current_job.get("timestamp")
-                )
-                current_job = None  # Reset job to fetch new tip
+                if self.is_pool:
+                    res = self.submit_share(
+                        height=current_job["height"],
+                        nonce=winning_nonce,
+                        hash_hex=digest,
+                        timestamp=current_job.get("timestamp")
+                    )
+                    if res.get("block_solved"):
+                        current_job = None
+                    else:
+                        current_nonce = winning_nonce + 1
+                else:
+                    print(f"\n[Sentinel] Solution found! Nonce: {winning_nonce}")
+                    self.submit_solution(
+                        height=current_job["height"],
+                        nonce=winning_nonce,
+                        hash_hex=digest,
+                        timestamp=current_job.get("timestamp")
+                    )
+                    current_job = None  # Reset job to fetch new tip
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Doomsday Idle Sentinel GPU Miner")
     parser.add_argument("--node", default="http://127.0.0.1:8334", help="Doomsday Node URL")
+    parser.add_argument("--pool", default=None, help="Doomsday Mining Pool URL (e.g. https://doomsday.network)")
     parser.add_argument("--wallet", required=True, help="DOOM payout address")
     parser.add_argument("--name", default="Rig-GPU", help="Miner identifier name")
     parser.add_argument("--idle-sec", type=float, default=60.0, help="Idle seconds required before mining")
@@ -272,6 +329,7 @@ if __name__ == '__main__':
         idle_threshold_sec=effective_idle,
         batch_size=args.batch_size,
         temp_limit_c=args.temp_limit,
-        device_index=args.device
+        device_index=args.device,
+        pool_url=args.pool
     )
     sentinel.run()

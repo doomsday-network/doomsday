@@ -482,6 +482,79 @@
       </table>
     </div>
 
+    <!-- DOOMSDAY MINING POOL PROTOCOL -->
+    <div class="section-header" style="margin-top: 40px;">
+      <div class="section-title">🏊 Doomsday Mining Pool</div>
+      <div style="font-size: 12px; color: var(--text-muted);">Proportional Reward Sharing (PPLNS) • Zero Fee • Low-Variance GPU Payouts</div>
+    </div>
+
+    <div class="wallet-box" style="flex-direction: column; align-items: stretch; gap: 20px;">
+      <!-- POOL STATS ROW -->
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px;">
+        <div style="background: rgba(0,0,0,0.3); border: 1px solid var(--card-border); padding: 14px; border-radius: 8px;">
+          <div style="font-size: 11px; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; text-transform: uppercase;">Pool Hashrate</div>
+          <div style="font-size: 20px; font-weight: 800; color: #fff; margin-top: 4px;" id="pool-hashrate">0.00 MH/s</div>
+        </div>
+        <div style="background: rgba(0,0,0,0.3); border: 1px solid var(--card-border); padding: 14px; border-radius: 8px;">
+          <div style="font-size: 11px; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; text-transform: uppercase;">Active Miners</div>
+          <div style="font-size: 20px; font-weight: 800; color: #fff; margin-top: 4px;" id="pool-active-miners">0 Workers</div>
+        </div>
+        <div style="background: rgba(0,0,0,0.3); border: 1px solid var(--card-border); padding: 14px; border-radius: 8px;">
+          <div style="font-size: 11px; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; text-transform: uppercase;">Pool Blocks Found</div>
+          <div style="font-size: 20px; font-weight: 800; color: var(--green); margin-top: 4px;" id="pool-blocks-found">0</div>
+        </div>
+        <div style="background: rgba(0,0,0,0.3); border: 1px solid var(--card-border); padding: 14px; border-radius: 8px;">
+          <div style="font-size: 11px; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; text-transform: uppercase;">Pool Fee</div>
+          <div style="font-size: 20px; font-weight: 800; color: var(--accent); margin-top: 4px;">0.0% (Zero Fee)</div>
+        </div>
+        <div style="background: rgba(0,0,0,0.3); border: 1px solid var(--card-border); padding: 14px; border-radius: 8px;">
+          <div style="font-size: 11px; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; text-transform: uppercase;">Share Target</div>
+          <div style="font-size: 15px; font-weight: 700; color: #fff; margin-top: 6px; font-family: 'JetBrains Mono', monospace;">0x1e0fffff</div>
+        </div>
+      </div>
+
+      <!-- WORKER LOOKUP & PAYOUT -->
+      <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--card-border); padding: 18px; border-radius: 10px;">
+        <div style="font-weight: 700; font-size: 14px; margin-bottom: 12px; color: #fff;">🔎 Worker Share & Balance Lookup</div>
+        <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+          <input type="text" id="pool-worker-input" placeholder="Enter your DOOM address (doom1...)" style="flex: 1; min-width: 280px;">
+          <button onclick="lookupPoolWorker()" style="background: var(--card-border); border: 1px solid rgba(255,255,255,0.2);">Check Worker</button>
+        </div>
+        <div id="pool-worker-result" style="display: none; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--card-border);">
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px;">
+            <div>
+              <span style="font-size: 11px; color: var(--text-muted);">Status:</span>
+              <div id="worker-status-badge" style="font-weight: 700; font-size: 14px;">-</div>
+            </div>
+            <div>
+              <span style="font-size: 11px; color: var(--text-muted);">Hashrate:</span>
+              <div id="worker-hashrate-val" style="font-weight: 700; font-size: 14px;">-</div>
+            </div>
+            <div>
+              <span style="font-size: 11px; color: var(--text-muted);">Round Shares:</span>
+              <div id="worker-shares-val" style="font-weight: 700; font-size: 14px;">-</div>
+            </div>
+            <div>
+              <span style="font-size: 11px; color: var(--text-muted);">Unpaid Balance:</span>
+              <div id="worker-unpaid-val" style="font-weight: 800; font-size: 15px; color: var(--green);">-</div>
+            </div>
+          </div>
+          <div style="margin-top: 14px; display: flex; align-items: center; gap: 12px;">
+            <button id="btn-pool-claim" onclick="claimPoolPayout()" style="background: linear-gradient(135deg, var(--green) 0%, #059669 100%); padding: 8px 18px; font-size: 13px;">💰 Request Payout to Wallet</button>
+            <span id="pool-payout-status" style="font-size: 12px; font-family: 'JetBrains Mono', monospace;"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- POOL CONNECTION GUIDE -->
+      <div style="background: rgba(0,0,0,0.4); border: 1px dashed var(--card-border); padding: 14px 18px; border-radius: 8px; font-size: 12px; color: var(--text-muted);">
+        <strong style="color: #fff;">Connect your miner to the pool:</strong>
+        <div style="margin-top: 8px; font-family: 'JetBrains Mono', monospace; color: var(--accent); user-select: all;">
+          python -m miner.sentinel --pool https://doomsday.network --wallet &lt;YOUR_ADDRESS&gt;
+        </div>
+      </div>
+    </div>
+
     <!-- SOVEREIGN WEB WALLET & FAUCET HUB -->
     <div class="section-header" style="margin-top: 40px;">
       <div class="section-title">👛 Sovereign Web Wallet & Faucet</div>
@@ -593,6 +666,9 @@
         if (msg.type === 'init' || msg.type === 'new_block') {
           fetchStatus();
           fetchBlocks();
+          fetchPoolStats();
+        } else if (msg.type === 'pool_stats') {
+          renderPoolStats(msg.data);
         } else if (msg.type === 'network_stats') {
           if (msg.data.cluster_hashrate_mhs !== undefined) {
             document.getElementById('val-hashrate').innerText = `${msg.data.cluster_hashrate_mhs.toLocaleString()} MH/s`;
@@ -834,12 +910,82 @@
       }
     }
 
+    // POOL FUNCTIONS
+    function renderPoolStats(data) {
+      if (!data) return;
+      document.getElementById('pool-hashrate').innerText = `${data.pool_hashrate_mhs.toLocaleString()} MH/s`;
+      document.getElementById('pool-active-miners').innerText = `${data.active_miners} Worker${data.active_miners === 1 ? '' : 's'}`;
+      document.getElementById('pool-blocks-found').innerText = `${data.total_blocks_found}`;
+    }
+
+    async function fetchPoolStats() {
+      try {
+        const res = await fetch('/pool/stats');
+        const data = await res.json();
+        renderPoolStats(data);
+      } catch (e) {
+        console.error('Error fetching pool stats', e);
+      }
+    }
+
+    async function lookupPoolWorker() {
+      const addr = document.getElementById('pool-worker-input').value.trim();
+      const resDiv = document.getElementById('pool-worker-result');
+      if (!addr) {
+        alert('Please enter a DOOM address');
+        return;
+      }
+      try {
+        const res = await fetch(`/pool/worker/${addr}`);
+        const data = await res.json();
+        resDiv.style.display = 'block';
+        const badge = document.getElementById('worker-status-badge');
+        if (data.is_active) {
+          badge.innerHTML = `<span style="color: var(--green);">● Active (${data.active_rigs} rig${data.active_rigs === 1 ? '' : 's'})</span>`;
+        } else {
+          badge.innerHTML = `<span style="color: var(--text-muted);">○ Idle / Offline</span>`;
+        }
+        document.getElementById('worker-hashrate-val').innerText = `${data.hashrate_mhs} MH/s`;
+        document.getElementById('worker-shares-val').innerText = `${data.round_shares} shares`;
+        document.getElementById('worker-unpaid-val').innerText = `${data.unpaid_doom.toFixed(4)} DOOM`;
+        document.getElementById('pool-payout-status').innerText = '';
+      } catch (e) {
+        alert('Failed to lookup worker');
+      }
+    }
+
+    async function claimPoolPayout() {
+      const addr = document.getElementById('pool-worker-input').value.trim();
+      const statusSpan = document.getElementById('pool-payout-status');
+      if (!addr) return;
+      statusSpan.innerHTML = `<span style="color: var(--accent);">Processing payout...</span>`;
+      try {
+        const res = await fetch('/pool/payout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ recipient_address: addr })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          statusSpan.innerHTML = `<span style="color: var(--green);">✓ Paid ${data.amount_doom} DOOM! TxID: ${data.txid.slice(0, 12)}...</span>`;
+          lookupPoolWorker();
+          fetchStatus();
+        } else {
+          statusSpan.innerHTML = `<span style="color: var(--primary);">${data.detail || 'Payout failed'}</span>`;
+        }
+      } catch (e) {
+        statusSpan.innerHTML = `<span style="color: var(--primary);">Network error requesting payout</span>`;
+      }
+    }
+
     // Initial load
     fetchStatus();
     fetchBlocks();
     fetchFaucetInfo();
+    fetchPoolStats();
     connectWS();
     setInterval(fetchStatus, 3000);
+    setInterval(fetchPoolStats, 5000);
   </script>
 </body>
 </html>

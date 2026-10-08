@@ -1,155 +1,116 @@
-# Doomsday Network (DOOM)
-## A Decentralized Proof-of-Idle-Work Cryptocurrency for Consumer Silicon
-
-**Whitepaper v1.0**  
-*Published: October 2026*  
-*Repository: https://github.com/doomsday-network/doomsday*
-
----
-
-### Abstract
-Modern cryptocurrency networks have abandoned ordinary users. Bitcoin’s Proof-of-Work has centralized into specialized multi-million-dollar ASIC mining warehouses, while Ethereum and Proof-of-Stake protocols have created plutocratic cartels where capital dictates consensus. Concurrently, billions of dollars of high-performance consumer GPUs (GeForce RTX series) sit idle across the world for over 70% of each day, consuming negligible power while their computational capacity remains dormant.
-
-**Doomsday (`DOOM`)** is a sovereign, decentralized Layer-1 Proof-of-Work blockchain engineered specifically to activate this dormant global computational capacity. Built with an ASIC-resistant consensus algorithm (**DoomHash**), a smooth per-block difficulty adjustment mechanism (ASERT), and a native, zero-lag **Idle Sentinel**, Doomsday enables ordinary gaming and creator workstations to secure a global ledger without degrading user experience. When users work or play, Doomsday sleeps; when the workstation falls idle, the silent silicon awakens.
-
-Doomsday has no venture capital backing, no initial coin offering (ICO), no pre-mine, and no developer taxes. It is a 100% fair-launch network designed to endure as an autonomous, censorship-resistant public ledger.
+# Doomsday Protocol Whitepaper
+**Proof-of-Idle-Work (PoIW) & Sovereign Silicon Economics**
+*Version 1.0.0 — October 2026*  
+*Author: Doomsday Core Team <core@doomsday.network>*  
+*Network Portal: [https://doomsday.network](https://doomsday.network)*
 
 ---
 
-### 1. Philosophy & Problem Statement
+## 1. Abstract
 
-#### 1.1 The Centralization of Consensus
-Satoshi Nakamoto's original vision of *"one CPU, one vote"* has been systematically dismantled:
-1. **The Industrial ASIC Monopoly:** SHA-256 and Scrypt networks are dominated by a handful of ASIC manufacturers and mega-mining pools situated near subsidized hydroelectric grids. A consumer with a high-end desktop GPU cannot participate.
-2. **The Staking Aristocracy:** Proof-of-Stake eliminates computational expenditure at the cost of decentralization: those who already own the coins control the block generation, vote on forks, and capture all protocol fees, creating an unassailable financial oligarchy.
-3. **Fragility of Cloud-Dependent Networks:** Many modern blockchains rely on nodes hosted on centralized commercial clouds (AWS, Google Cloud, Hetzner). A coordinated regulatory action or infrastructure outage poses an existential risk to their liveness.
+Modern blockchain consensus mechanisms suffer from a fundamental trilemma between environmental sustainability, hardware sovereignty, and decentralization. Traditional Proof-of-Work (PoW) networks drive industrial centralization through specialized ASIC farms running 24/7 in climate-controlled facilities, consuming terawatt-hours of base-load energy. Conversely, Proof-of-Stake (PoS) models sacrifice physical censorship resistance by entrenching capital cartels, where coin ownership directly dictates protocol governance.
 
-#### 1.2 The Latent Silicon Reservoir
-Worldwide, millions of desktops possess immense compute capability—ranging from modern high-throughput architectures with high-speed memory subsystems (GDDR6/GDDR7) to multi-threaded modern CPUs. In typical consumer usage patterns, these machines operate at sub-10% capacity for 16 to 20 hours each day.
-
-Doomsday turns this latent hardware reservoir into an unstoppable, decentralized computing fabric.
+**Doomsday Network** introduces **Proof-of-Idle-Work (PoIW)**—a Layer-1 blockchain protocol engineered to capture latent, underutilized consumer GPU computing power without competing with human productivity, gaming frames-per-second, or workstation tasks. By utilizing a hybrid memory-hard algorithm combined with sub-millisecond operating system input telemetry, Doomsday miners stand vigilant in the background: harvesting network security when workstations are idle, and yielding 100% of GPU resources the instant user activity is detected.
 
 ---
 
-### 2. The DoomHash Proof-of-Work Algorithm
+## 2. The Proof-of-Idle-Work (PoIW) Paradigm
 
-To prevent ASIC dominance and ensure long-term viability on consumer GPUs, Doomsday implements **DoomHash**.
+Consumer and gaming workstation GPUs represent the largest untapped pool of high-performance parallel silicon on Earth. Billions of compute hours are wasted daily while machines sit idle on lock screens, standby modes, or desk breaks.
 
-#### 2.1 Design Objectives
-1. **GPU-Optimal Compute:** DoomHash leverages high-throughput bitwise SIMD logic, non-linear permutation rounds, and memory-access branchiness that maps natively to GPU Streaming Multiprocessors (SMs).
-2. **Zero-Dependency Bare-Metal Execution:** Miners do not require bloated software development kits (SDKs) or external C++ compilers. The reference GPU solver compiles directly via driver-level PTX (Parallel Thread Execution) JIT, allowing any consumer system with standard graphics drivers to participate immediately.
-3. **Instant Header Verification:** While finding a valid nonce requires trillions of matrix-hash iterations, verifying a candidate block takes less than 10 microseconds on a standard CPU.
+### 2.1 Microsecond Input Interception
+The Doomsday Sentinel utilizes native OS hook APIs (`GetLastInputInfo` on Windows, event counters on Linux) to poll hardware input state with microsecond accuracy. 
 
-#### 2.2 Mathematical Specification
-A candidate block header $H$ consists of:
-$$H = \langle \text{Version}, \text{PrevHash}, \text{MerkleRoot}, \text{Timestamp}, \text{Bits}, \text{Nonce}, \text{MinerAddress} \rangle$$
+* **Active Threshold:** Configurable by user (e.g., 60s Aggressive, 180s Gamer Mode).
+* **Yield Latency:** Sub-millisecond interrupt. The instant mouse motion, keypress, or gamepad actuation is registered, the CUDA execution context halts kernel dispatch and releases device queues.
+* **Thermal Cutoff:** Continuous dynamic thermal throttling monitors GPU junction temperature, automatically scaling back batch dispatch if thermals exceed user thresholds (default: 75°C).
 
-The mining condition requires:
-$$\text{DoomHash}(H, \text{Nonce}) < \text{Target}$$
-
-Where $\text{Target}$ is a 256-bit unsigned integer derived from the compact difficulty representation $\text{Bits}$.
-
-The DoomHash function executes two distinct cryptographic stages:
-1. **State Mixing:** An initial fast cryptographic digest (Blake3 / Keccak) produces a 64-byte intermediate seed $S$.
-2. **Non-Linear Register Permutation:** $S$ is expanded across an 8-round non-linear permutation matrix:
-$$R_{i+1} = (R_i \lll k) \oplus (R_i \cdot \phi) \bmod 2^{64}$$
-where $\phi$ is the golden ratio integer constant ($0x9E3779B97F4A7C15$), preventing loop unrolling shortcuts in custom ASIC silicon.
-3. **Final Compression:** The permuted state is compressed via a final cryptographic digest to produce the 256-bit block hash.
+### 2.2 Sleep Prevention without Display Interruption
+Doomsday integrates OS-level sleep suppression (`SetThreadExecutionState` with `ES_SYSTEM_REQUIRED` on Windows, systemd inhibit locks on Linux). The GPU and CPU core remain awake during idle periods while monitors and displays sleep normally according to user power plans.
 
 ---
 
-### 3. Smooth Dynamic Difficulty (ASERT)
+## 3. Cryptographic Specification
 
-In a network where consumer GPUs enter and exit mining mode dynamically as users launch games or step away, traditional multi-day difficulty adjustments (e.g., Bitcoin's 2016-block window) would cause catastrophic oscillation.
+### 3.1 DoomHash: Hybrid Memory-Hard Algorithm
+DoomHash combines high-throughput parallel SHA256 transform mixing with memory-hard Argon2id seed derivation:
 
-Doomsday utilizes **ASERT** (Absolutely Scheduled Exponentially-Rising Targets), an anchor-based difficulty adjustment algorithm evaluated **per block**:
+$$\text{Seed} = \text{SHA256}(\text{BlockHeaderPrefix})$$
 
-$$\text{Target}_{i} = \text{Target}_{\text{anchor}} \times 2^{\frac{(t_i - t_{\text{anchor}}) - (h_i - h_{\text{anchor}}) \times T}{\tau}}$$
+$$\text{State}_i = \text{Argon2id}(\text{Seed} \oplus \text{Nonce}_i, \text{salt}, \text{mem}=64\text{MB})$$
+
+$$\text{FinalHash} = \text{SHA256}(\text{State}_i)$$
+
+* **ASIC Resistance:** Memory bandwidth latency prevents cheap fixed-function ASIC domination.
+* **Bare-Metal CUDA Acceleration:** Kernels are compiled in-memory via NVIDIA NVRTC, bypassing third-party dependencies and achieving over 5+ Gigahashes per second on modern Blackwell/Ada silicon.
+
+### 3.2 Elliptic Curve Cryptography
+* **Curve:** `secp256k1` (standard Koblitz curve, $y^2 = x^3 + 7 \pmod p$)
+* **Signature Scheme:** ECDSA with deterministic RFC 6979 nonce generation.
+* **Address Derivation:**
+  $$\text{Address} = \text{"doom1"} + \text{Hex}(\text{RIPEMD160}(\text{SHA256}(\text{PubKey}_{\text{compressed}}))) + \text{Checksum}_{4\text{B}}$$
+
+---
+
+## 4. Monetary Policy & Tokenomics
+
+Doomsday enforces an immutable, hard-capped supply schedule modeled after thermodynamic scarcity:
+
+* **Maximum Circulating Supply:** **21,000,000 DOOM** ($2.1 \times 10^{15}$ Sparks)
+* **Base Unit:** 1 DOOM = $100,000,000$ Sparks ($10^8$ satoshi-equivalent)
+* **Target Block Time:** **20 seconds**
+* **Initial Block Subsidy:** **50.0 DOOM** per block
+* **Halving Schedule:** Every **2,100,000 blocks** (~1.33 years)
+* **Halving Progression:**
+  * Blocks 0 – 2,099,999: 50.0 DOOM / block
+  * Blocks 2,100,000 – 4,199,999: 25.0 DOOM / block
+  * Blocks 4,200,000 – 6,299,999: 12.5 DOOM / block
+  * Blocks 6,300,000 – 8,399,999: 6.25 DOOM / block
+  * Decay continues across 64 halvings until full circulation is achieved.
+
+---
+
+## 5. Consensus & Dynamic Retargeting: ASERT
+
+To prevent the classic "hashrate oscillation" catastrophe common in small-to-medium PoW networks, Doomsday implements **ASERT** (Absolutely Scheduled Exponentially-Rising Targets).
+
+Instead of discrete batch recalculations (e.g. Bitcoin's 2016-block window), ASERT recalculates target difficulty smoothly on **every single block**:
+
+$$\text{Target}_{n} = \text{Target}_{\text{anchor}} \times 2^{\frac{(t_n - t_{\text{anchor}}) - (h_n - h_{\text{anchor}}) \cdot T}{\tau}}$$
 
 Where:
-* $T = 20\text{ seconds}$ (the target block interval).
-* $\tau = 600\text{ seconds}$ (half-life smoothing factor).
-* $h_i$ is current block height; $t_i$ is block timestamp.
+* $T = 20\text{ seconds}$ (target block interval)
+* $\tau = 240\text{ seconds}$ (ASERT half-life smoothing parameter, equivalent to 12 blocks)
+* $t_n, t_{\text{anchor}} =$ timestamps of current and anchor blocks
+* $h_n, h_{\text{anchor}} =$ block heights of current and anchor blocks
 
-**Properties:**
-* If all 3 home GPUs enter idle state simultaneously, difficulty scales up smoothly over 10–20 blocks without sudden spikes.
-* If a high-hashrate node exits immediately upon user input, the difficulty adjusts downward within minutes, preventing the blockchain from freezing.
-
----
-
-### 4. Monetary Policy & Economic Model
-
-Doomsday adopts a strictly predictable, deflationary emission curve inspired by hard money principles.
-
-```
-Total Max Supply: 21,000,000 DOOM
-Initial Block Reward: 50 DOOM per block
-Target Block Time: 20 seconds (~4,320 blocks per day)
-Halving Interval: 2,100,000 blocks (~1.33 years)
-Pre-mine: 0.00%
-Developer Fee: 0.00%
-```
-
-#### 4.1 Emission Schedule
-* **Era 1 (Blocks 0 – 2,100,000):** 50 DOOM / block (~105,000,000 total mined / era halving)
-* **Era 2 (Blocks 2,100,001 – 4,200,000):** 25 DOOM / block
-* **Era 3 (Blocks 4,200,001 – 6,300,000):** 12.5 DOOM / block
-* Continues until block subsidy terminates, after which miners are compensated purely through transaction fees.
-
-#### 4.2 Genesis Block
-Block #0 contains no pre-mined coins and hardcodes the Genesis invocation:
-> *"Doomsday Clock: 90 seconds to midnight. When the world goes dark, the silent silicon awakens."*
+### Advantages:
+1. **Zero Oscillation:** Difficulty adjusts continuously without waiting for multi-day retarget windows.
+2. **Instant Recovery:** If 80% of network hashrate leaves, the difficulty exponentially drops within minutes rather than freezing the chain.
+3. **Mathematical Invariance:** Average block time strictly converges to 20 seconds regardless of total cluster power.
 
 ---
 
-### 5. The Zero-Lag Idle Sentinel Architecture
+## 6. Network Architecture & Clients
 
-Consumer hardware cannot be used for mining if it interferes with primary interactive workloads (gaming, rendering, editing).
+### 6.1 Seed Nodes & RPC Layer
+* **Sovereign Seed Node:** High-availability Linux node serving JSON-RPC over port 8334, fronted by automatic Let's Encrypt TLS reverse proxies.
+* **Endpoints:**
+  * `GET /status` — Network metrics, aggregate hashrate, active worker count, supply.
+  * `GET /job` — Mining template generator for remote rigs.
+  * `POST /submit` — Proof-of-work solution candidate submission.
+  * `POST /tx/send` — Signed raw transaction mempool broadcast.
+  * `WS /ws` — Real-time event stream for blocks, transactions, and difficulty.
 
-```
-                     +---------------------------+
-                     |    User Activity Check    |
-                     |  (Win32 GetLastInputInfo) |
-                     +-------------+-------------+
-                                   |
-                   +---------------+---------------+
-                   |                               |
-          [Idle < Threshold]              [Idle >= Threshold]
-                   |                               |
-                   v                               v
-         +-------------------+           +-------------------+
-         | STATE: SUSPENDED  |           |   STATE: MINING   |
-         | - 0% GPU Compute  |           | - CUDA Grid Run   |
-         | - VRAM Released   |           | - Temp/Power Mon. |
-         +-------------------+           +-------------------+
-```
-
-1. **Sub-Millisecond Preemption:** The sentinel continuously polls OS input subsystem timers via native Win32 calls. The moment mouse movement or keypress is registered, the CUDA mining process drops locks and yields GPU context within < 50ms.
-2. **Foreground Process Awareness:** The sentinel checks for full-screen DirectX/Vulkan windows and known high-demand processes (`steam.exe`, `blender.exe`, `premiere.exe`). If an excluded process is running, mining remains locked out even if no physical input is detected.
-3. **Thermal & Acoustic Hysteresis:** Mining starts after an idle ramp period (default: 180 seconds) and throttles back if GPU temperature exceeds user-configured thresholds (default: 72°C).
+### 6.2 Client Ecosystem
+* **Windows Desktop Client (`Doomsday.exe`):** Electron + NVRTC GUI client featuring stealth system tray backgrounding, sleep prevention, and live GPU telemetry meters.
+* **Linux / HiveOS Headless Miner (`install.sh`):** 1-command curl installer for headless mining rigs, Ubuntu/Debian servers, and HiveOS mining farms.
+* **Sovereign Web Wallet:** Client-side secp256k1 key generation, local keystore JSON backup, and 1-click testnet faucet.
 
 ---
 
-### 6. Network & Peer-to-Peer Protocol
+## 7. Conclusion
 
-The Doomsday network operates as a decentralized mesh:
-* **Wire Protocol:** Binary JSON-RPC over TCP / WebSockets for low-latency block propagation.
-* **Peer Discovery:** Hardcoded DNS seed nodes bootstrap newly connected clients into the distributed peer table.
-* **Mini-Pool & Stratum:** Every node features an embedded Stratum server, enabling multi-PC households to direct all worker rigs to a single master coordinator without installing third-party pool software.
-* **Integrated Explorer:** A local lightweight HTTP dashboard streams live blocks, difficulty targets, and network hashrate without reliance on third-party block explorers.
+Doomsday Network establishes a new equilibrium in distributed consensus. By transforming dormant GPU silicon into sovereign cryptographic security, it removes the environmental stigma of Proof-of-Work while upholding the permissionless, trust-minimized ideals of decentralized currency.
 
----
-
-### 7. Security & Threat Model
-
-* **51% Attack Resilience:** With ASERT difficulty adjustment, sudden influxes of malicious hash power are rapidly met with exponential difficulty increases.
-* **Sybil Protection:** Peer reputation scoring disconnects nodes that broadcast invalid block headers or malformed transactions.
-* **Double Spend Protection:** Transactions use standard UTXO model with secp256k1 ECDSA digital signatures, requiring 6 block confirmations for finality (~2 minutes).
-
----
-
-### 8. Conclusion
-
-Doomsday (`DOOM`) returns Proof-of-Work to its decentralized origin. By utilizing the massive, untapped pool of idle consumer GPUs through zero-lag background mining, Doomsday builds a resilient, censorship-proof digital currency that belongs to anyone with a home computer.
-
-*When the world goes dark, the silent silicon awakens.*
+Stand vigil. Mine when you're away. Protect the network.

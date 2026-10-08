@@ -9,12 +9,45 @@ from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from node.blockchain import Blockchain
+from node.pool import MiningPool
 from core.transaction import COIN, Transaction, TxInput, TxOutput
 
 app = FastAPI(title="Doomsday Network Node", version="1.0.0", docs_url="/api/docs", redoc_url=None)
 
 # Initialize Ledger
 chain = Blockchain()
+
+# Pool Wallet & Mining Pool Engine
+def load_or_create_pool_wallet() -> Dict[str, str]:
+    paths = [
+        "pool_wallet.json",
+        "data/pool_wallet.json",
+        os.path.join(os.path.dirname(os.path.dirname(__file__)), "pool_wallet.json"),
+        os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "pool_wallet.json")
+    ]
+    for p in paths:
+        if os.path.exists(p):
+            try:
+                with open(p, "r") as f:
+                    return json.load(f)
+            except Exception:
+                pass
+    from core.crypto import generate_keypair, private_key_to_wif, public_key_to_address
+    priv, pub = generate_keypair()
+    data = {
+        "address": public_key_to_address(pub),
+        "private_key": private_key_to_wif(priv)
+    }
+    target = os.path.join(os.path.dirname(os.path.dirname(__file__)), "pool_wallet.json")
+    try:
+        with open(target, "w") as f:
+            json.dump(data, f, indent=2)
+    except Exception:
+        pass
+    return data
+
+pool_wallet = load_or_create_pool_wallet()
+pool = MiningPool(chain=chain, pool_address=pool_wallet["address"], fee_pct=0.0)
 
 # Live Workers State: miner_name -> dict
 active_miners: Dict[str, Dict[str, Any]] = {}
@@ -29,6 +62,14 @@ class SubmitBlockRequest(BaseModel):
     hash: str
     miner_name: str = "Rig-Default"
     miner_address: str
+    timestamp: Optional[int] = None
+
+
+class PoolSubmitRequest(BaseModel):
+    height: int
+    nonce: int
+    worker_address: str
+    worker_name: str = "Rig-Default"
     timestamp: Optional[int] = None
 
 
@@ -143,6 +184,97 @@ async def submit_block(req: SubmitBlockRequest):
         "reward_doom": 50.0
     })
     return {"accepted": True, "height": tip.height, "hash": tip.hash}
+
+
+@app.get("/pool/job")
+def get_pool_job(worker_address: str = "doom1miner000000000000000000000000000000", worker_name: str = "Worker-Default"):
+    return pool.get_job(worker_address, worker_name)
+
+
+@app.post("/pool/submit")
+async def submit_pool_share(req: PoolSubmitRequest):
+    res = pool.submit_share(
+        height=req.height,
+        nonce=req.nonce,
+        worker_address=req.worker_address,
+        worker_name=req.worker_name,
+        timestamp=req.timestamp
+    )
+    if not res.get("accepted"):
+        raise HTTPException(status_code=400, detail=res.get("reason", "Share rejected"))
+
+    if res.get("block_solved"):
+        tip = chain.get_tip()
+        await broadcast_event("new_block", {
+            "height": tip.height,
+            "hash": tip.hash,
+            "miner": tip.header.miner_address,
+            "miner_name": f"Pool:[{req.worker_name}]",
+            "nonce": tip.header.nonce,
+            "timestamp": tip.header.timestamp,
+            "reward_doom": 50.0
+        })
+
+    await broadcast_event("pool_stats", pool.get_stats())
+    return res
+
+
+@app.get("/pool/stats")
+def get_pool_stats():
+    return pool.get_stats()
+
+
+@app.get("/pool/worker/{address}")
+def get_pool_worker(address: str):
+    return pool.get_worker_stats(address)
+
+
+@app.post("/pool/payout")
+async def request_pool_payout(req: FaucetClaimRequest):
+    unpaid = pool.unpaid_sparks.get(req.recipient_address, 0)
+    if unpaid < int(1.0 * COIN):
+        raise HTTPException(status_code=400, detail=f"Minimum payout is 1.0 DOOM. Unpaid balance: {unpaid / COIN:.4f} DOOM")
+
+    avail = chain.get_balance(pool.pool_address)
+    if avail < unpaid:
+        raise HTTPException(status_code=503, detail="Pool node does not have sufficient confirmed on-chain balance yet.")
+
+    from core.crypto import private_key_from_wif
+    priv = private_key_from_wif(pool_wallet["private_key"])
+    inputs = []
+    accum = 0
+    for outpoint, (rcpt, amt) in chain.utxo_set.items():
+        if rcpt == pool.pool_address:
+            txid, vout = outpoint.split(":")
+            inputs.append(TxInput(txid=txid, vout=int(vout)))
+            accum += amt
+            if accum >= unpaid:
+                break
+
+    outputs = [TxOutput(recipient=req.recipient_address, amount=unpaid)]
+    change = accum - unpaid
+    if change > 0:
+        outputs.append(TxOutput(recipient=pool.pool_address, amount=change))
+
+    tx = Transaction(inputs=inputs, outputs=outputs)
+    for idx in range(len(inputs)):
+        tx.sign_input(idx, priv)
+
+    ok, reason = chain.add_transaction_to_mempool(tx)
+    if not ok:
+        raise HTTPException(status_code=400, detail=reason)
+
+    pool.unpaid_sparks[req.recipient_address] = 0
+    pool.total_paid_sparks[req.recipient_address] = pool.total_paid_sparks.get(req.recipient_address, 0) + unpaid
+
+    await broadcast_event("new_tx", tx.to_dict())
+    await broadcast_event("pool_stats", pool.get_stats())
+    return {
+        "status": "payout_sent",
+        "txid": tx.txid,
+        "amount_doom": unpaid / COIN,
+        "recipient": req.recipient_address
+    }
 
 
 @app.post("/miner/telemetry")
