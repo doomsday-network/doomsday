@@ -168,6 +168,7 @@ class IdleSentinelMiner:
         current_job = None
         current_nonce = 0
         last_heartbeat = 0
+        last_job_check = 0
 
         while True:
             idle_sec = get_user_idle_seconds()
@@ -199,7 +200,15 @@ class IdleSentinelMiner:
                     time.sleep(2)
                     continue
                 current_nonce = 0
+                last_job_check = time.time()
                 print(f"\n[Sentinel] Mining Block #{current_job['height']} | Target: {hex(current_job['target_high'])}")
+            elif time.time() - last_job_check > 5:
+                fresh_job = self.fetch_job()
+                if fresh_job and fresh_job.get("header_prefix_hex") != current_job.get("header_prefix_hex"):
+                    current_job = fresh_job
+                    current_nonce = 0
+                    print(f"\n[Sentinel] Job updated (mempool/tip change) | Block #{current_job['height']}")
+                last_job_check = time.time()
 
             # Execute batch on GPU
             seed_u64 = tuple(current_job["seed_u64"])

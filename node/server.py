@@ -50,6 +50,30 @@ class SendTxRequest(BaseModel):
     private_key_wif: str
 
 
+class FaucetClaimRequest(BaseModel):
+    recipient_address: str
+
+
+faucet_claims: Dict[str, float] = {}
+
+
+def load_faucet_wallet() -> Optional[Dict[str, str]]:
+    paths = [
+        "faucet_wallet.json",
+        "data/faucet_wallet.json",
+        os.path.join(os.path.dirname(os.path.dirname(__file__)), "faucet_wallet.json"),
+        os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "faucet_wallet.json")
+    ]
+    for p in paths:
+        if os.path.exists(p):
+            try:
+                with open(p, "r") as f:
+                    return json.load(f)
+            except Exception:
+                pass
+    return None
+
+
 async def broadcast_event(event_type: str, data: Any):
     """Broadcast real-time updates to all connected web dashboards."""
     dead_sockets = []
@@ -192,6 +216,82 @@ async def send_transaction(req: SendTxRequest):
 
     await broadcast_event("new_tx", tx.to_dict())
     return {"txid": tx.txid, "status": "Broadcast to mempool"}
+
+
+@app.post("/wallet/new")
+def generate_new_wallet():
+    from core.crypto import generate_keypair, private_key_to_wif, public_key_to_address
+    priv, pub = generate_keypair()
+    return {
+        "address": public_key_to_address(pub),
+        "private_key": private_key_to_wif(priv)
+    }
+
+
+@app.get("/faucet/info")
+def get_faucet_info():
+    faucet = load_faucet_wallet()
+    if not faucet:
+        return {"active": False, "balance_doom": 0.0, "address": None, "drop_amount": 10.0}
+    balance_sparks = chain.get_balance(faucet["address"])
+    return {
+        "active": True,
+        "address": faucet["address"],
+        "balance_doom": balance_sparks / COIN,
+        "drop_amount": 10.0
+    }
+
+
+@app.post("/faucet/claim")
+async def claim_faucet(req: FaucetClaimRequest):
+    faucet = load_faucet_wallet()
+    if not faucet:
+        raise HTTPException(status_code=503, detail="Faucet wallet is currently not loaded on this node.")
+
+    now = time.time()
+    last_claim = faucet_claims.get(req.recipient_address, 0)
+    if now - last_claim < 60:
+        wait_sec = int(60 - (now - last_claim))
+        raise HTTPException(status_code=429, detail=f"Rate limit exceeded. Please wait {wait_sec}s before claiming again.")
+
+    amount_sparks = int(10.0 * COIN)
+    avail = chain.get_balance(faucet["address"])
+    if avail < amount_sparks:
+        raise HTTPException(status_code=503, detail="Faucet is depleted. Check back after miners discover more blocks.")
+
+    from core.crypto import private_key_from_wif
+    priv = private_key_from_wif(faucet["private_key"])
+    inputs = []
+    accum = 0
+    for outpoint, (rcpt, amt) in chain.utxo_set.items():
+        if rcpt == faucet["address"]:
+            txid, vout = outpoint.split(":")
+            inputs.append(TxInput(txid=txid, vout=int(vout)))
+            accum += amt
+            if accum >= amount_sparks:
+                break
+
+    outputs = [TxOutput(recipient=req.recipient_address, amount=amount_sparks)]
+    change = accum - amount_sparks
+    if change > 0:
+        outputs.append(TxOutput(recipient=faucet["address"], amount=change))
+
+    tx = Transaction(inputs=inputs, outputs=outputs)
+    for idx in range(len(inputs)):
+        tx.sign_input(idx, priv)
+
+    ok, reason = chain.add_transaction_to_mempool(tx)
+    if not ok:
+        raise HTTPException(status_code=400, detail=reason)
+
+    faucet_claims[req.recipient_address] = now
+    await broadcast_event("new_tx", tx.to_dict())
+    return {
+        "status": "success",
+        "txid": tx.txid,
+        "amount_doom": 10.0,
+        "recipient": req.recipient_address
+    }
 
 
 @app.websocket("/ws")

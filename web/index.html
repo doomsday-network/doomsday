@@ -290,6 +290,25 @@
       transition: opacity 0.2s;
     }
     button:hover { opacity: 0.9; }
+    .tab-btn {
+      background: transparent;
+      color: var(--text-muted);
+      border: 1px solid transparent;
+      border-radius: 6px;
+      padding: 8px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+    .tab-btn:hover {
+      color: #fff;
+      background: rgba(255, 255, 255, 0.04);
+    }
+    .tab-btn.active {
+      color: #fff;
+      background: rgba(255, 59, 48, 0.15);
+      border-color: var(--primary);
+    }
   </style>
 </head>
 <body>
@@ -369,21 +388,101 @@
       </table>
     </div>
 
-    <!-- WALLET BALANCE CHECKER -->
-    <div class="section-header">
-      <div class="section-title">👛 Wallet Ledger Inspector</div>
-      <div style="font-size: 12px; color: var(--text-muted);">Real-time UTXO Balance Verification</div>
+    <!-- SOVEREIGN WEB WALLET & FAUCET HUB -->
+    <div class="section-header" style="margin-top: 40px;">
+      <div class="section-title">👛 Sovereign Web Wallet & Faucet</div>
+      <div style="font-size: 12px; color: var(--text-muted);">Client-Side Wallet Generation, Peer-to-Peer Transfers & Community Faucet</div>
     </div>
-    <div class="wallet-box">
-      <div class="input-group">
-        <input type="text" id="wallet-input" placeholder="Enter DOOM address (doom1...)" />
+
+    <div class="wallet-box" style="flex-direction: column; align-items: stretch; gap: 16px;">
+      <!-- TAB NAVIGATION -->
+      <div style="display: flex; gap: 8px; border-bottom: 1px solid var(--card-border); padding-bottom: 12px; flex-wrap: wrap;">
+        <button id="tab-btn-inspect" class="tab-btn active" onclick="switchWalletTab('inspect')">🔍 Check Balance</button>
+        <button id="tab-btn-send" class="tab-btn" onclick="switchWalletTab('send')">⚡ Send DOOM</button>
+        <button id="tab-btn-create" class="tab-btn" onclick="switchWalletTab('create')">🔑 Create Wallet</button>
+        <button id="tab-btn-faucet" class="tab-btn" onclick="switchWalletTab('faucet')">🚰 Faucet (10 Free DOOM)</button>
       </div>
-      <button onclick="checkBalance()">Check Balance</button>
-      <div style="display: flex; gap: 8px; width: 100%; margin-top: 10px;">
-        <button style="background: #272730; font-size: 12px; padding: 6px 14px;" onclick="inspectWallet('doom12da148685b855223a3cd830058e227d8369b5aac8e96db05')">★ Master Wallet</button>
-        <button style="background: #272730; font-size: 12px; padding: 6px 14px;" onclick="inspectWallet('doom12514a528552aca6e8f36dd6acc048eac763e60a950ea1296')">★ Secondary Test Wallet</button>
+
+      <!-- TAB 1: INSPECT BALANCE -->
+      <div id="tab-inspect" class="tab-pane">
+        <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+          <div class="input-group">
+            <input type="text" id="wallet-input" placeholder="Enter DOOM address (doom1...)" />
+          </div>
+          <button onclick="checkBalance()">Check Balance</button>
+        </div>
+        <div style="display: flex; gap: 8px; width: 100%; margin-top: 12px; flex-wrap: wrap;">
+          <button style="background: #272730; font-size: 12px; padding: 6px 14px;" onclick="inspectWallet('doom12da148685b855223a3cd830058e227d8369b5aac8e96db05')">★ Master Wallet</button>
+          <button style="background: #272730; font-size: 12px; padding: 6px 14px;" onclick="inspectWallet('doom1caea0957fb471c2b83940cc2feb421abad938dfbdef662de')">🚰 Faucet Reserve</button>
+          <button style="background: #272730; font-size: 12px; padding: 6px 14px;" onclick="inspectWallet('doom12514a528552aca6e8f36dd6acc048eac763e60a950ea1296')">★ Secondary Test Wallet</button>
+        </div>
+        <div id="balance-result" style="font-family: 'JetBrains Mono', monospace; font-size: 16px; font-weight: 700; color: var(--green); margin-top: 14px;"></div>
       </div>
-      <div id="balance-result" style="font-family: 'JetBrains Mono', monospace; font-size: 16px; font-weight: 700; color: var(--green); margin-top: 8px;"></div>
+
+      <!-- TAB 2: SEND DOOM -->
+      <div id="tab-send" class="tab-pane" style="display: none;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px;">
+          <div>
+            <label style="font-size: 12px; color: var(--text-muted); font-weight: 600; margin-bottom: 6px; display: block;">Sender DOOM Address</label>
+            <input type="text" id="send-sender-address" placeholder="doom1..." />
+          </div>
+          <div>
+            <label style="font-size: 12px; color: var(--text-muted); font-weight: 600; margin-bottom: 6px; display: block;">Sender Private Key (WIF)</label>
+            <input type="password" id="send-private-key" placeholder="64-character private key hex" />
+          </div>
+          <div>
+            <label style="font-size: 12px; color: var(--text-muted); font-weight: 600; margin-bottom: 6px; display: block;">Recipient DOOM Address</label>
+            <input type="text" id="send-recipient-address" placeholder="doom1..." />
+          </div>
+          <div>
+            <label style="font-size: 12px; color: var(--text-muted); font-weight: 600; margin-bottom: 6px; display: block;">Amount (DOOM)</label>
+            <input type="number" step="0.1" min="0.1" id="send-amount" placeholder="e.g. 50.0" />
+          </div>
+        </div>
+        <div style="margin-top: 16px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+          <button onclick="submitSendTx()" style="background: linear-gradient(135deg, var(--primary), var(--accent));">Broadcast Transaction ⚡</button>
+          <div id="send-status" style="font-family: 'JetBrains Mono', monospace; font-size: 13px;"></div>
+        </div>
+      </div>
+
+      <!-- TAB 3: CREATE WALLET -->
+      <div id="tab-create" class="tab-pane" style="display: none;">
+        <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 14px;">
+          Generate a new secp256k1 keypair and DOOM address. Keys are generated instantly and belong solely to you.
+        </p>
+        <button onclick="generateNewWallet()" style="background: #272730; border: 1px solid var(--primary); color: #fff;">⚡ Generate New Wallet Keypair</button>
+        <div id="create-wallet-result" style="display: none; margin-top: 16px; padding: 16px; background: rgba(0,0,0,0.5); border-radius: 8px; border: 1px solid var(--card-border);">
+          <div style="margin-bottom: 10px;">
+            <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Public DOOM Address</div>
+            <div id="new-wallet-address" style="font-family: 'JetBrains Mono', monospace; font-size: 14px; color: var(--green); word-break: break-all; margin-top: 4px;"></div>
+          </div>
+          <div style="margin-bottom: 12px;">
+            <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Private Key (Keep Secret!)</div>
+            <div id="new-wallet-key" style="font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--accent); word-break: break-all; margin-top: 4px;"></div>
+          </div>
+          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <button onclick="downloadWalletBackup()" style="font-size: 12px; padding: 8px 14px; background: #272730;">📥 Download Backup (.json)</button>
+            <button onclick="useGeneratedWallet()" style="font-size: 12px; padding: 8px 14px; background: rgba(255, 153, 0, 0.2); border: 1px solid var(--accent); color: var(--accent);">Use in Send Tab &rarr;</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 4: FAUCET -->
+      <div id="tab-faucet" class="tab-pane" style="display: none;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+          <p style="font-size: 13px; color: var(--text-muted); margin: 0;">
+            Claim <strong>10.0 DOOM</strong> from the network faucet to test peer-to-peer transfers. (Limit: 1 claim / min)
+          </p>
+          <div id="faucet-reserve-badge" style="font-size: 12px; font-family: 'JetBrains Mono', monospace; color: var(--accent); background: rgba(255,153,0,0.1); padding: 4px 10px; border-radius: 6px;">Reserve: Loading...</div>
+        </div>
+        <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+          <div class="input-group">
+            <input type="text" id="faucet-recipient-input" placeholder="Enter recipient address (doom1...)" />
+          </div>
+          <button onclick="claimFaucet()" style="background: linear-gradient(135deg, #10b981, #059669);">Claim 10 DOOM 🚰</button>
+        </div>
+        <div id="faucet-status" style="font-family: 'JetBrains Mono', monospace; font-size: 13px; margin-top: 14px;"></div>
+      </div>
     </div>
   </div>
 
@@ -543,9 +642,142 @@
       }
     }
 
+    // Active wallet state in memory
+    let lastGeneratedWallet = null;
+
+    function switchWalletTab(tabName) {
+      const tabs = ['inspect', 'send', 'create', 'faucet'];
+      tabs.forEach(t => {
+        const btn = document.getElementById(`tab-btn-${t}`);
+        const pane = document.getElementById(`tab-${t}`);
+        if (btn && pane) {
+          if (t === tabName) {
+            btn.classList.add('active');
+            pane.style.display = 'block';
+          } else {
+            btn.classList.remove('active');
+            pane.style.display = 'none';
+          }
+        }
+      });
+      if (tabName === 'faucet') fetchFaucetInfo();
+    }
+
+    async function submitSendTx() {
+      const statusDiv = document.getElementById('send-status');
+      const sender = document.getElementById('send-sender-address').value.trim();
+      const privKey = document.getElementById('send-private-key').value.trim();
+      const recipient = document.getElementById('send-recipient-address').value.trim();
+      const amount = parseFloat(document.getElementById('send-amount').value);
+
+      if (!sender || !privKey || !recipient || !amount || amount <= 0) {
+        statusDiv.innerHTML = `<span style="color: var(--primary);">Please fill all fields with valid values.</span>`;
+        return;
+      }
+
+      statusDiv.innerHTML = `<span style="color: var(--accent);">Broadcasting to mempool...</span>`;
+      try {
+        const res = await fetch('/tx/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sender_address: sender,
+            private_key_wif: privKey,
+            recipient_address: recipient,
+            amount_doom: amount
+          })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          statusDiv.innerHTML = `<span style="color: var(--green);">✓ Sent! TxID: ${data.txid.slice(0, 16)}... (Awaiting block)</span>`;
+          document.getElementById('send-amount').value = '';
+          fetchStatus();
+          fetchBlocks();
+        } else {
+          statusDiv.innerHTML = `<span style="color: var(--primary);">Error: ${data.detail || 'Transfer failed'}</span>`;
+        }
+      } catch (e) {
+        statusDiv.innerHTML = `<span style="color: var(--primary);">Network error submitting transaction</span>`;
+      }
+    }
+
+    async function generateNewWallet() {
+      try {
+        const res = await fetch('/wallet/new', { method: 'POST' });
+        const data = await res.json();
+        lastGeneratedWallet = data;
+        document.getElementById('new-wallet-address').innerText = data.address;
+        document.getElementById('new-wallet-key').innerText = data.private_key;
+        document.getElementById('create-wallet-result').style.display = 'block';
+      } catch (e) {
+        alert('Failed to generate wallet. Please try again.');
+      }
+    }
+
+    function downloadWalletBackup() {
+      if (!lastGeneratedWallet) return;
+      const blob = new Blob([JSON.stringify(lastGeneratedWallet, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `doomsday-wallet-${lastGeneratedWallet.address.slice(0, 10)}.json`;
+      a.click();
+    }
+
+    function useGeneratedWallet() {
+      if (!lastGeneratedWallet) return;
+      document.getElementById('send-sender-address').value = lastGeneratedWallet.address;
+      document.getElementById('send-private-key').value = lastGeneratedWallet.private_key;
+      switchWalletTab('send');
+    }
+
+    async function fetchFaucetInfo() {
+      try {
+        const res = await fetch('/faucet/info');
+        const data = await res.json();
+        const badge = document.getElementById('faucet-reserve-badge');
+        if (data.active) {
+          badge.innerText = `Reserve: ${data.balance_doom.toLocaleString()} DOOM`;
+        } else {
+          badge.innerText = `Reserve: Offline`;
+        }
+      } catch (e) {
+        console.error('Failed to fetch faucet info', e);
+      }
+    }
+
+    async function claimFaucet() {
+      const statusDiv = document.getElementById('faucet-status');
+      const rcpt = document.getElementById('faucet-recipient-input').value.trim();
+      if (!rcpt) {
+        statusDiv.innerHTML = `<span style="color: var(--primary);">Please enter a DOOM address (doom1...)</span>`;
+        return;
+      }
+      statusDiv.innerHTML = `<span style="color: var(--accent);">Dispensing 10 DOOM...</span>`;
+      try {
+        const res = await fetch('/faucet/claim', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ recipient_address: rcpt })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          statusDiv.innerHTML = `<span style="color: var(--green);">✓ Success! Dispensed 10.0 DOOM to ${rcpt.slice(0, 12)}... TxID: ${data.txid.slice(0, 14)}...</span>`;
+          fetchFaucetInfo();
+          fetchStatus();
+          fetchBlocks();
+        } else {
+          statusDiv.innerHTML = `<span style="color: var(--primary);">${data.detail || 'Claim failed'}</span>`;
+        }
+      } catch (e) {
+        statusDiv.innerHTML = `<span style="color: var(--primary);">Network error requesting faucet</span>`;
+      }
+    }
+
     // Initial load
     fetchStatus();
     fetchBlocks();
+    fetchFaucetInfo();
     connectWS();
     setInterval(fetchStatus, 3000);
   </script>

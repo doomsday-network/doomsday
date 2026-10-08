@@ -10,7 +10,7 @@ venv/
 
 # Doomsday Local Ledger & Secrets
 data/
-wallet*.json
+*wallet*.json
 *.dll
 .env
 *.key
