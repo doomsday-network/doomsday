@@ -104,6 +104,129 @@
       100% { opacity: 0.4; }
     }
 
+    .btn-download {
+      background: linear-gradient(135deg, var(--primary) 0%, #b81c2b 100%);
+      color: #fff;
+      text-decoration: none;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      font-weight: 700;
+      padding: 10px 18px;
+      border-radius: 8px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 0 15px var(--primary-glow);
+      transition: all 0.2s ease;
+      border: 1px solid rgba(255, 59, 48, 0.4);
+    }
+    .btn-download:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 0 25px var(--primary-glow);
+      background: linear-gradient(135deg, #ff4d40 0%, #d12233 100%);
+    }
+
+    /* HERO BANNER */
+    .hero-banner {
+      background: linear-gradient(135deg, rgba(255, 51, 68, 0.08) 0%, rgba(18, 18, 22, 0.95) 100%);
+      border: 1px solid rgba(255, 51, 68, 0.3);
+      border-radius: 14px;
+      padding: 26px 30px;
+      margin-bottom: 34px;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 4px 30px rgba(0, 0, 0, 0.4);
+    }
+    .hero-banner::after {
+      content: '';
+      position: absolute;
+      top: -50%;
+      right: -20%;
+      width: 400px;
+      height: 400px;
+      background: radial-gradient(circle, rgba(255, 51, 68, 0.12) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .hero-badge {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      color: var(--primary);
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+    .hero-title {
+      font-family: 'Cinzel', serif;
+      font-size: 24px;
+      font-weight: 800;
+      color: #fff;
+      margin-bottom: 10px;
+      letter-spacing: 0.5px;
+    }
+    .hero-desc {
+      font-size: 14px;
+      line-height: 1.6;
+      color: var(--text-muted);
+      max-width: 820px;
+      margin-bottom: 20px;
+    }
+    .hero-actions {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+    .btn-hero-primary {
+      background: var(--primary);
+      color: #fff;
+      text-decoration: none;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 14px;
+      font-weight: 700;
+      padding: 12px 22px;
+      border-radius: 8px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 0 20px var(--primary-glow);
+      transition: all 0.2s ease;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    .btn-hero-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 0 30px var(--primary-glow);
+      background: #ff4755;
+    }
+    .btn-hero-secondary {
+      background: rgba(255, 255, 255, 0.05);
+      color: #fff;
+      text-decoration: none;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 12px 18px;
+      border-radius: 8px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid var(--card-border);
+      transition: all 0.2s;
+    }
+    .btn-hero-secondary:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+    .hero-meta {
+      display: flex;
+      gap: 16px;
+      font-size: 12px;
+      color: var(--text-muted);
+      font-family: 'JetBrains Mono', monospace;
+      margin-left: 8px;
+      flex-wrap: wrap;
+    }
+
     /* METRIC CARDS */
     .metrics-grid {
       display: grid;
@@ -265,9 +388,14 @@
           <div class="tagline">Proof-of-Idle-Work • Layer-1 Sovereign Silicon</div>
         </div>
       </div>
-      <div class="clock-widget">
-        <div class="clock-dot"></div>
-        <span>DOOMSDAY CLOCK: <strong>90s TO MIDNIGHT</strong></span>
+      <div style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap;">
+        <a href="https://github.com/doomsday-network/doomsday/releases/download/v1.0.0/Doomsday-v1.0.0-windows-x64.zip" class="btn-download" target="_blank">
+          <span>⚡ Download Miner (v1.0.0)</span>
+        </a>
+        <div class="clock-widget">
+          <div class="clock-dot"></div>
+          <span>DOOMSDAY CLOCK: <strong>90s TO MIDNIGHT</strong></span>
+        </div>
       </div>
     </header>
 
@@ -292,6 +420,32 @@
         <div class="metric-title">Target Difficulty</div>
         <div class="metric-value" id="val-diff">0x1e0ffff0</div>
         <div class="metric-sub">ASERT Auto-Retarget (20s)</div>
+      </div>
+    </div>
+
+    <!-- DOWNLOAD & MINING HERO BANNER -->
+    <div class="hero-banner">
+      <div class="hero-content">
+        <div class="hero-badge">PROOF-OF-IDLE-WORK • V1.0.0 STANDALONE RELEASE</div>
+        <h2 class="hero-title">Stand Vigil. Mine DOOM Silently While You're Away.</h2>
+        <p class="hero-desc">
+          Doomsday Sentinel stands guard on your GPU with microsecond zero-lag input interception. 
+          When your PC is idle, your NVIDIA GPU harvests DOOM at full speed. The instant you move your mouse or press a key, 
+          it yields 100% of GPU resources with zero FPS drop while gaming or working.
+        </p>
+        <div class="hero-actions">
+          <a href="https://github.com/doomsday-network/doomsday/releases/download/v1.0.0/Doomsday-v1.0.0-windows-x64.zip" class="btn-hero-primary" target="_blank">
+            <span>⬇️ Download Windows Desktop App (145 MB)</span>
+          </a>
+          <a href="https://github.com/doomsday-network/doomsday" class="btn-hero-secondary" target="_blank">
+            <span>🐙 GitHub Repository</span>
+          </a>
+          <div class="hero-meta">
+            <span>✓ Windows 10/11 x64</span>
+            <span>✓ NVIDIA RTX / GTX (CUDA)</span>
+            <span>✓ Zero Setup Required</span>
+          </div>
+        </div>
       </div>
     </div>
 
