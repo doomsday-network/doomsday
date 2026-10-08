@@ -206,22 +206,53 @@ class CUDASolver:
                     except (AttributeError, OSError):
                         pass
 
-        # 4. Load NVRTC
-        if nvrtc_path:
-            dll_folder = os.path.dirname(nvrtc_path)
-            try:
-                ctypes.windll.kernel32.SetDllDirectoryW(dll_folder)
-            except Exception:
-                pass
-            os.environ["PATH"] = dll_folder + os.pathsep + os.environ.get("PATH", "")
-            self.nvrtc = ctypes.CDLL(nvrtc_path)
-        else:
-            try:
-                self.nvrtc = ctypes.CDLL('nvrtc64_120_0.dll')
-            except OSError:
-                self.nvrtc = ctypes.CDLL('nvrtc.dll')
+        if os.name == 'nt':
+            if nvrtc_path:
+                dll_folder = os.path.dirname(nvrtc_path)
+                try:
+                    ctypes.windll.kernel32.SetDllDirectoryW(dll_folder)
+                except Exception:
+                    pass
+                os.environ["PATH"] = dll_folder + os.pathsep + os.environ.get("PATH", "")
+                self.nvrtc = ctypes.CDLL(nvrtc_path)
+            else:
+                try:
+                    self.nvrtc = ctypes.CDLL('nvrtc64_120_0.dll')
+                except OSError:
+                    self.nvrtc = ctypes.CDLL('nvrtc.dll')
 
-        self.cuda = ctypes.WinDLL('nvcuda.dll')
+            self.cuda = ctypes.WinDLL('nvcuda.dll')
+        else:
+            # Linux / HiveOS dynamic loading
+            self.nvrtc = None
+            nvrtc_candidates = ['libnvrtc.so.12', 'libnvrtc.so.11.2', 'libnvrtc.so.11.0', 'libnvrtc.so']
+            for name in nvrtc_candidates:
+                try:
+                    self.nvrtc = ctypes.CDLL(name)
+                    break
+                except OSError:
+                    pass
+            if not self.nvrtc:
+                cuda_paths = glob.glob('/usr/local/cuda*/lib64/libnvrtc.so*')
+                for cp in cuda_paths:
+                    try:
+                        self.nvrtc = ctypes.CDLL(cp)
+                        break
+                    except OSError:
+                        pass
+            if not self.nvrtc:
+                raise RuntimeError("Failed to load libnvrtc.so on Linux. Ensure NVIDIA CUDA toolkit is installed.")
+
+            self.cuda = None
+            cuda_candidates = ['libcuda.so.1', 'libcuda.so']
+            for cname in cuda_candidates:
+                try:
+                    self.cuda = ctypes.CDLL(cname)
+                    break
+                except OSError:
+                    pass
+            if not self.cuda:
+                raise RuntimeError("Failed to load libcuda.so on Linux. Ensure NVIDIA drivers are installed.")
 
         assert self.cuda.cuInit(0) == 0, "Failed to initialize CUDA driver"
         self.device = ctypes.c_int()

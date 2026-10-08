@@ -72,7 +72,8 @@ class IdleSentinelMiner:
         miner_name: str = "Rig-Default",
         idle_threshold_sec: float = 120.0,
         batch_size: int = 5_000_000,
-        temp_limit_c: int = 75
+        temp_limit_c: int = 75,
+        device_index: int = 0
     ):
         if not node_url.startswith("http://") and not node_url.startswith("https://"):
             node_url = "https://" + node_url
@@ -84,10 +85,11 @@ class IdleSentinelMiner:
         self.idle_threshold_sec = idle_threshold_sec
         self.batch_size = batch_size
         self.temp_limit_c = temp_limit_c
+        self.device_index = device_index
 
-        print(f"Initializing Mining Engine for [{self.miner_name}]...")
+        print(f"Initializing Mining Engine for [{self.miner_name}] (Device #{self.device_index})...")
         try:
-            self.solver = CUDASolver()
+            self.solver = CUDASolver(device_index=self.device_index)
             print(f"Engine Ready: {self.solver.device_name}")
         except Exception as e:
             print(f"[!] CUDA GPU Initialization failed ({e}). Falling back to CPU Solver...")
@@ -182,7 +184,7 @@ class IdleSentinelMiner:
                 continue
 
             # Check if user is active
-            if idle_sec < self.idle_threshold_sec:
+            if self.idle_threshold_sec > 0 and idle_sec < self.idle_threshold_sec:
                 set_prevent_sleep(False)  # Allow normal power states while user active
                 if time.time() - last_heartbeat > 3:
                     sys.stdout.write(f"\r[User Active] Standing by... (Idle: {idle_sec:.1f}s / {self.idle_threshold_sec:.0f}s)   ")
@@ -254,18 +256,22 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Doomsday Idle Sentinel GPU Miner")
     parser.add_argument("--node", default="http://127.0.0.1:8334", help="Doomsday Node URL")
     parser.add_argument("--wallet", required=True, help="DOOM payout address")
-    parser.add_argument("--name", default="Rig-5080", help="Miner identifier name")
+    parser.add_argument("--name", default="Rig-GPU", help="Miner identifier name")
     parser.add_argument("--idle-sec", type=float, default=60.0, help="Idle seconds required before mining")
+    parser.add_argument("--continuous", action="store_true", help="Run continuously (for headless Linux/HiveOS rigs)")
+    parser.add_argument("--device", type=int, default=0, help="CUDA device index (default: 0)")
     parser.add_argument("--batch-size", type=int, default=10_000_000, help="Nonces per GPU batch")
     parser.add_argument("--temp-limit", type=int, default=75, help="Thermal cutoff in Celsius")
 
     args = parser.parse_args()
+    effective_idle = 0.0 if args.continuous else args.idle_sec
     sentinel = IdleSentinelMiner(
         node_url=args.node,
         wallet_address=args.wallet,
         miner_name=args.name,
-        idle_threshold_sec=args.idle_sec,
+        idle_threshold_sec=effective_idle,
         batch_size=args.batch_size,
-        temp_limit_c=args.temp_limit
+        temp_limit_c=args.temp_limit,
+        device_index=args.device
     )
     sentinel.run()

@@ -337,6 +337,11 @@ if os.path.exists(web_dir):
     def index():
         return FileResponse(os.path.join(web_dir, "index.html"))
 
+    @app.get("/install.sh")
+    def get_install_script():
+        script_path = os.path.join(web_dir, "install.sh")
+        return FileResponse(script_path, media_type="text/x-shellscript")
+
 
 def start_server(host: str = "0.0.0.0", port: int = 8334):
     import uvicorn
