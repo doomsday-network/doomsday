@@ -5,6 +5,13 @@
   "main": "compile.js",
   "scripts": {
     "compile": "node compile.js",
+    "wallet:create": "node wallet_manager.js",
+    "wallet:status": "node check_balance.js",
+    "wallet:status:sepolia": "node check_balance.js --sepolia",
+    "simulate": "node dry_run.js",
+    "launch:dry-run": "node launch_uniswap_pool.js --dry-run",
+    "launch:mainnet": "node launch_uniswap_pool.js",
+    "launch:sepolia": "node launch_uniswap_pool.js --sepolia",
     "deploy:sepolia": "node deploy.js",
     "deploy:mainnet": "node deploy.js --mainnet"
   },
