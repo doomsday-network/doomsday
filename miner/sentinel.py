@@ -81,9 +81,15 @@ class IdleSentinelMiner:
         self.batch_size = batch_size
         self.temp_limit_c = temp_limit_c
 
-        print(f"Initializing GPU Mining Engine for [{self.miner_name}]...")
-        self.solver = CUDASolver()
-        print(f"Engine Ready: {self.solver.device_name}")
+        print(f"Initializing Mining Engine for [{self.miner_name}]...")
+        try:
+            self.solver = CUDASolver()
+            print(f"Engine Ready: {self.solver.device_name}")
+        except Exception as e:
+            print(f"[!] CUDA GPU Initialization failed ({e}). Falling back to CPU Solver...")
+            from miner.cpu_solver import CPUSolver
+            self.solver = CPUSolver()
+            print(f"Engine Ready: CPU Reference Solver")
 
     def fetch_job(self) -> Optional[Dict[str, Any]]:
         """Request the latest block mining job from the Doomsday Node."""

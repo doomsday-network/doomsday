@@ -204,7 +204,7 @@ function updateTrayMenu() {
 function startMinerChildProcess(cfg) {
   stopMinerChildProcess();
 
-  const projectDir = path.dirname(__dirname);
+  const projectDir = app.isPackaged ? process.resourcesPath : path.dirname(__dirname);
   const pythonCmd = 'python';
   const args = [
     '-u',

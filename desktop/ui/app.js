@@ -33,6 +33,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     oobeView.style.flexDirection = 'column';
     dashboardView.style.display = 'none';
 
+    if (config.wallet_address) {
+      document.getElementById('oobe-wallet-input').value = config.wallet_address;
+    }
+    if (config.rig_name) {
+      document.getElementById('oobe-rig-name').value = config.rig_name;
+    }
+    if (config.node_url) {
+      document.getElementById('oobe-node-url').value = config.node_url;
+    }
+
     document.getElementById('btn-gen-wallet').addEventListener('click', async () => {
       document.getElementById('btn-gen-wallet').innerText = 'Generating...';
       const w = await window.doomsdayAPI.generateWallet();
@@ -53,6 +63,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       const idleSec = idleMode === 'aggressive' ? 60 : 180;
       const startAtBoot = document.getElementById('check-startup').checked;
       const minToTray = document.getElementById('check-tray').checked;
+      const rigName = document.getElementById('oobe-rig-name').value.trim();
+      const nodeUrl = document.getElementById('oobe-node-url').value.trim();
 
       config.first_run = false;
       config.wallet_address = addr;
@@ -60,6 +72,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       config.idle_seconds = idleSec;
       config.start_at_boot = startAtBoot;
       config.minimize_to_tray = minToTray;
+      if (rigName) config.rig_name = rigName;
+      if (nodeUrl) config.node_url = nodeUrl;
 
       await window.doomsdayAPI.saveConfig(config);
       await window.doomsdayAPI.startMiner(config);
@@ -81,7 +95,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       window.doomsdayAPI.pauseMining(60);
     });
     document.getElementById('btn-open-explorer').addEventListener('click', () => {
-      window.doomsdayAPI.openExternal('http://localhost:8334');
+      const url = config.node_url || 'http://localhost:8334';
+      window.doomsdayAPI.openExternal(url);
     });
     document.getElementById('btn-reconfigure').addEventListener('click', (e) => {
       e.preventDefault();
@@ -142,7 +157,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   async function fetchBalance() {
     if (!config.wallet_address) return;
     try {
-      const res = await fetch(`http://localhost:8334/wallet/${config.wallet_address}`);
+      const baseUrl = (config.node_url || 'http://localhost:8334').replace(/\/+$/, '');
+      const res = await fetch(`${baseUrl}/wallet/${config.wallet_address}`);
       if (res.ok) {
         const data = await res.json();
         document.getElementById('val-balance').innerText = `${data.balance_doom.toLocaleString()} DOOM`;

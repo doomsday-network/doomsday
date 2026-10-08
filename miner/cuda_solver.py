@@ -3,7 +3,7 @@ import os
 import struct
 import time
 import hashlib
-import torch
+import glob
 from typing import Optional, Tuple
 from core.crypto import doom_hash
 
@@ -163,9 +163,58 @@ class CUDASolver:
     """
     def __init__(self, device_index: int = 0):
         self.device_index = device_index
-        torch_lib = os.path.join(os.path.dirname(torch.__file__), 'lib')
-        os.add_dll_directory(torch_lib)
-        self.nvrtc = ctypes.CDLL(os.path.join(torch_lib, 'nvrtc64_120_0.dll'))
+
+        # Locate NVRTC library across multiple common locations
+        nvrtc_path = None
+
+        # 1. Local miner directory
+        local_dir = os.path.dirname(os.path.abspath(__file__))
+        local_dlls = [f for f in glob.glob(os.path.join(local_dir, "nvrtc64_*.dll")) if "alt" not in os.path.basename(f).lower()]
+        if local_dlls:
+            nvrtc_path = local_dlls[0]
+            try:
+                os.add_dll_directory(local_dir)
+            except (AttributeError, OSError):
+                pass
+
+        # 2. PyTorch bundled runtime
+        if not nvrtc_path:
+            try:
+                import torch
+                torch_lib = os.path.join(os.path.dirname(torch.__file__), 'lib')
+                if os.path.exists(torch_lib):
+                    try:
+                        os.add_dll_directory(torch_lib)
+                    except (AttributeError, OSError):
+                        pass
+                    torch_dlls = [f for f in glob.glob(os.path.join(torch_lib, "nvrtc64_*.dll")) if "alt" not in os.path.basename(f).lower()]
+                    if torch_dlls:
+                        nvrtc_path = torch_dlls[0]
+            except (ImportError, Exception):
+                pass
+
+        # 3. CUDA_PATH / Toolkit
+        if not nvrtc_path:
+            cuda_path = os.environ.get("CUDA_PATH")
+            if cuda_path:
+                bin_dir = os.path.join(cuda_path, "bin")
+                cuda_dlls = [f for f in glob.glob(os.path.join(bin_dir, "nvrtc64_*.dll")) if "alt" not in os.path.basename(f).lower()]
+                if cuda_dlls:
+                    nvrtc_path = cuda_dlls[0]
+                    try:
+                        os.add_dll_directory(bin_dir)
+                    except (AttributeError, OSError):
+                        pass
+
+        # 4. Load NVRTC
+        if nvrtc_path:
+            self.nvrtc = ctypes.CDLL(nvrtc_path)
+        else:
+            try:
+                self.nvrtc = ctypes.CDLL('nvrtc64_120_0.dll')
+            except OSError:
+                self.nvrtc = ctypes.CDLL('nvrtc.dll')
+
         self.cuda = ctypes.WinDLL('nvcuda.dll')
 
         assert self.cuda.cuInit(0) == 0, "Failed to initialize CUDA driver"

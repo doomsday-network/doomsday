@@ -29,8 +29,19 @@
     "directories": {
       "output": "dist"
     },
+    "extraResources": [
+      {
+        "from": "../core",
+        "to": "core"
+      },
+      {
+        "from": "../miner",
+        "to": "miner"
+      }
+    ],
     "win": {
-      "target": "nsis"
+      "target": "dir",
+      "signAndEditExecutable": false
     },
     "mac": {
       "target": "dmg",

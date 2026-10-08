@@ -81,7 +81,20 @@
         </label>
       </div>
 
-      <button class="btn" id="btn-finish-oobe" style="margin-top: auto; padding: 14px;">ENTER THE NETWORK →</button>
+      <!-- STEP 4: MULTI-PC CLUSTER (OPTIONAL) -->
+      <div class="card">
+        <label style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Multi-PC Home Cluster (Optional)</label>
+        <div style="margin-top: 8px;">
+          <span style="font-size: 11px; color: var(--text-muted);">Rig Identifier Name</span>
+          <input type="text" class="input-field" id="oobe-rig-name" placeholder="Rig-5080 (or Rig-4060Ti)" />
+        </div>
+        <div style="margin-top: 8px;">
+          <span style="font-size: 11px; color: var(--text-muted);">Node URL (Master PC IP)</span>
+          <input type="text" class="input-field" id="oobe-node-url" placeholder="http://127.0.0.1:8334" />
+        </div>
+      </div>
+
+      <button class="btn" id="btn-finish-oobe" style="margin-top: 10px; margin-bottom: 20px; padding: 14px;">ENTER THE NETWORK →</button>
     </div>
 
     <!-- VIEW 2: MAIN DASHBOARD -->
