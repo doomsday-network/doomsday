@@ -28,6 +28,8 @@ class Peer:
     def _format_url(addr: str) -> str:
         if addr.startswith("http://") or addr.startswith("https://"):
             return addr.rstrip('/')
+        if "doomsday.network:8334" in addr or addr in ("doomsday.network", "doomsday.network:443", "seed.doomsday.network"):
+            return "https://doomsday.network"
         if "doomsday.network" in addr:
             return f"https://{addr}".rstrip('/')
         return f"http://{addr}".rstrip('/')

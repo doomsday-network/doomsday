@@ -4,7 +4,7 @@ import json
 import os
 import time
 from typing import Dict, Any, List, Optional
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Header, Depends
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Header, Depends, Request
 from fastapi.responses import HTMLResponse, FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -359,7 +359,21 @@ def get_p2p_status():
 
 
 @app.post("/p2p/handshake")
-async def p2p_handshake(req: P2PHandshakeRequest):
+async def p2p_handshake(req: P2PHandshakeRequest, request: Request):
+    client_ip = request.client.host if request.client else "127.0.0.1"
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        client_ip = forwarded.split(",")[0].strip()
+
+    caller_addr = f"{client_ip}:{req.listen_port}"
+    if req.node_id != p2p.node_id:
+        peer = p2p.register_peer(caller_addr)
+        peer.node_id = req.node_id
+        peer.height = req.height
+        peer.tip_hash = req.tip_hash
+        peer.last_seen = time.time()
+        peer.is_connected = True
+
     tip = chain.get_tip()
     return {
         "node_id": p2p.node_id,
@@ -372,7 +386,7 @@ async def p2p_handshake(req: P2PHandshakeRequest):
 
 @app.get("/p2p/peers")
 def get_p2p_peers():
-    return [p.to_dict() for p in p2p.peers.values()]
+    return [p.to_dict() for p in p2p.peers.values() if p.is_connected]
 
 
 @app.get("/p2p/blocks")

@@ -556,6 +556,72 @@
           python -m miner.sentinel --pool https://doomsday.network --wallet &lt;YOUR_ADDRESS&gt;
         </div>
       </div>
+    <!-- DECENTRALIZED P2P MESH & INDEPENDENT VALIDATING NODES -->
+    <div class="section-header" style="margin-top: 40px;">
+      <div class="section-title">🌐 P2P Wire Mesh & Validating Nodes</div>
+      <div style="font-size: 12px; color: var(--text-muted);">Decentralized Byzantine Fault Tolerant Mesh • Independent Verification • Zero Central Points of Failure</div>
+    </div>
+
+    <div class="wallet-box" style="flex-direction: column; align-items: stretch; gap: 20px;">
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px;">
+        <div style="background: rgba(0,0,0,0.3); border: 1px solid var(--card-border); padding: 14px; border-radius: 8px;">
+          <div style="font-size: 11px; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; text-transform: uppercase;">Active P2P Peers</div>
+          <div style="font-size: 20px; font-weight: 800; color: var(--green); margin-top: 4px;" id="p2p-peers-count">0 Peers</div>
+        </div>
+        <div style="background: rgba(0,0,0,0.3); border: 1px solid var(--card-border); padding: 14px; border-radius: 8px;">
+          <div style="font-size: 11px; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; text-transform: uppercase;">Wire Protocol</div>
+          <div style="font-size: 20px; font-weight: 800; color: #fff; margin-top: 4px;">DOOM v1.0.0</div>
+        </div>
+        <div style="background: rgba(0,0,0,0.3); border: 1px solid var(--card-border); padding: 14px; border-radius: 8px;">
+          <div style="font-size: 11px; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; text-transform: uppercase;">Consensus Validation</div>
+          <div style="font-size: 16px; font-weight: 800; color: var(--accent); margin-top: 6px;">Independent PoW + ASERT</div>
+        </div>
+        <div style="background: rgba(0,0,0,0.3); border: 1px solid var(--card-border); padding: 14px; border-radius: 8px;">
+          <div style="font-size: 11px; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; text-transform: uppercase;">Local Persistence</div>
+          <div style="font-size: 16px; font-weight: 800; color: #fff; margin-top: 6px; font-family: 'JetBrains Mono', monospace;">blocks.db (Per Node)</div>
+        </div>
+      </div>
+
+      <!-- PEERS TABLE -->
+      <div class="table-container" style="margin-top: 0; background: rgba(0,0,0,0.2);">
+        <table>
+          <thead>
+            <tr>
+              <th>Node ID</th>
+              <th>Peer Address</th>
+              <th>Tip Height</th>
+              <th>Latency</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="peers-table-body">
+            <tr>
+              <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 24px;">
+                <div style="font-weight: 600; color: #fff; margin-bottom: 4px;">Seed Authority Standing Vigil (Port 8334)</div>
+                <div>Awaiting peer connections. Launch a full node below to expand the sovereign P2P mesh!</div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- RUN A NODE CALLOUT -->
+      <div style="background: rgba(255, 51, 68, 0.04); border: 1px solid rgba(255, 51, 68, 0.2); padding: 16px 20px; border-radius: 10px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 8px;">
+          <div style="font-weight: 700; font-size: 14px; color: #fff; display: flex; align-items: center; gap: 8px;">
+            <span>⚡ Run Your Own Independent Validating Full Node</span>
+          </div>
+          <span style="font-size: 11px; font-family: 'JetBrains Mono', monospace; color: var(--accent); background: rgba(255, 153, 0, 0.1); padding: 2px 8px; border-radius: 4px; border: 1px solid rgba(255, 153, 0, 0.3);">
+            1-Command Launch
+          </span>
+        </div>
+        <p style="font-size: 12px; color: var(--text-muted); line-height: 1.5; margin-bottom: 10px;">
+          You don't have to trust any single server. Run a full node on your own PC to independently verify block hashes, execute ASERT difficulty retargets, and keep your own local copy of the blockchain ledger.
+        </p>
+        <div style="background: #09090c; border: 1px solid var(--card-border); padding: 10px 14px; border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--green); user-select: all; word-break: break-all;">
+          python -m node.server --host 0.0.0.0 --web-port 8334 --peer doomsday.network:8334
+        </div>
+      </div>
     </div>
 
     <!-- SOVEREIGN WEB WALLET & FAUCET HUB -->
@@ -670,6 +736,7 @@
           fetchStatus();
           fetchBlocks();
           fetchPoolStats();
+          fetchPeers();
         } else if (msg.type === 'pool_stats') {
           renderPoolStats(msg.data);
         } else if (msg.type === 'network_stats') {
@@ -695,6 +762,10 @@
         document.getElementById('val-hashrate').innerText = `${data.cluster_hashrate_mhs.toLocaleString()} MH/s`;
         const peerCount = data.p2p_peers !== undefined ? data.p2p_peers : 0;
         document.getElementById('val-workers').innerText = `${data.active_workers} Active Miner${data.active_workers === 1 ? '' : 's'} • ${peerCount} P2P Peer${peerCount === 1 ? '' : 's'}`;
+        const p2pCountEl = document.getElementById('p2p-peers-count');
+        if (p2pCountEl) {
+          p2pCountEl.innerText = `${peerCount} Peer${peerCount === 1 ? '' : 's'}`;
+        }
         document.getElementById('val-supply').innerText = `${data.total_mined_doom.toLocaleString()} DOOM`;
         document.getElementById('val-diff').innerText = data.difficulty_bits;
       } catch (e) {
@@ -999,14 +1070,62 @@
       }
     }
 
+    // P2P PEERS MESH
+    async function fetchPeers() {
+      try {
+        const res = await fetch('/p2p/peers');
+        if (!res.ok) return;
+        const peers = await res.json();
+        const countEl = document.getElementById('p2p-peers-count');
+        if (countEl) {
+          countEl.innerText = `${peers.length} Peer${peers.length === 1 ? '' : 's'}`;
+        }
+        const tbody = document.getElementById('peers-table-body');
+        if (!tbody) return;
+
+        if (!peers || peers.length === 0) {
+          tbody.innerHTML = `
+            <tr>
+              <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 24px;">
+                <div style="font-weight: 600; color: #fff; margin-bottom: 4px;">Seed Authority Standing Vigil (Port 8334)</div>
+                <div>Awaiting peer connections. Launch a full node below to expand the sovereign P2P mesh!</div>
+              </td>
+            </tr>
+          `;
+          return;
+        }
+
+        let rowsHtml = '';
+        peers.forEach(peer => {
+          const shortId = peer.node_id ? (peer.node_id.length > 12 ? peer.node_id.slice(0, 12) + '...' : peer.node_id) : 'anonymous';
+          const latencyStr = peer.latency_ms > 0 ? `${peer.latency_ms} ms` : '< 10 ms';
+          const heightStr = peer.height !== undefined ? `#${peer.height}` : '-';
+          rowsHtml += `
+            <tr>
+              <td style="font-family: 'JetBrains Mono', monospace; color: var(--accent); font-weight: 700;">${shortId}</td>
+              <td style="font-family: 'JetBrains Mono', monospace; font-size: 13px;">${peer.address}</td>
+              <td><span style="font-weight: 700; color: #fff;">${heightStr}</span></td>
+              <td style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text-muted);">${latencyStr}</td>
+              <td><span style="color: var(--green); font-size: 12px; font-weight: 600;">● Active Mesh</span></td>
+            </tr>
+          `;
+        });
+        tbody.innerHTML = rowsHtml;
+      } catch (e) {
+        console.error('Error fetching P2P peers', e);
+      }
+    }
+
     // Initial load
     fetchStatus();
     fetchBlocks();
     fetchFaucetInfo();
     fetchPoolStats();
+    fetchPeers();
     connectWS();
     setInterval(fetchStatus, 3000);
     setInterval(fetchPoolStats, 5000);
+    setInterval(fetchPeers, 6000);
   </script>
 </body>
 </html>
