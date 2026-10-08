@@ -11,6 +11,7 @@ venv/
 # Doomsday Local Ledger & Secrets
 data/
 wallet.json
+.env
 *.key
 *.db
 *.log
