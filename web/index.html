@@ -348,7 +348,7 @@
     <!-- RECENT BLOCKS -->
     <div class="section-header">
       <div class="section-title">📦 Recent Mined Blocks</div>
-      <div style="font-size: 12px; color: var(--text-muted);" id="blocks-count">Latest blocks</div>
+      <div style="font-size: 12px; color: var(--text-muted);" id="blocks-count">Click any block to inspect on-chain transactions</div>
     </div>
     <div class="table-container">
       <table>
@@ -356,6 +356,7 @@
           <tr>
             <th>Height</th>
             <th>Block Hash</th>
+            <th>Transactions</th>
             <th>Mined By</th>
             <th>Nonce</th>
             <th>Reward</th>
@@ -371,13 +372,18 @@
     <!-- WALLET BALANCE CHECKER -->
     <div class="section-header">
       <div class="section-title">👛 Wallet Ledger Inspector</div>
+      <div style="font-size: 12px; color: var(--text-muted);">Real-time UTXO Balance Verification</div>
     </div>
     <div class="wallet-box">
       <div class="input-group">
         <input type="text" id="wallet-input" placeholder="Enter DOOM address (doom1...)" />
       </div>
       <button onclick="checkBalance()">Check Balance</button>
-      <div id="balance-result" style="font-family: 'JetBrains Mono', monospace; font-size: 16px; font-weight: 700; color: var(--green);"></div>
+      <div style="display: flex; gap: 8px; width: 100%; margin-top: 10px;">
+        <button style="background: #272730; font-size: 12px; padding: 6px 14px;" onclick="inspectWallet('doom12da148685b855223a3cd830058e227d8369b5aac8e96db05')">★ Master Wallet</button>
+        <button style="background: #272730; font-size: 12px; padding: 6px 14px;" onclick="inspectWallet('doom12514a528552aca6e8f36dd6acc048eac763e60a950ea1296')">★ Secondary Test Wallet</button>
+      </div>
+      <div id="balance-result" style="font-family: 'JetBrains Mono', monospace; font-size: 16px; font-weight: 700; color: var(--green); margin-top: 8px;"></div>
     </div>
   </div>
 
@@ -418,27 +424,73 @@
 
     async function fetchBlocks() {
       try {
-        const res = await fetch('/blocks?limit=15');
+        const res = await fetch('/blocks?limit=25');
         const blocks = await res.json();
         const tbody = document.getElementById('blocks-table-body');
         tbody.innerHTML = '';
         blocks.forEach(b => {
           const row = document.createElement('tr');
+          row.style.cursor = 'pointer';
           const miner = b.header.miner_address ? `${b.header.miner_address.slice(0, 14)}...` : 'Genesis';
           const timeStr = new Date(b.header.timestamp * 1000).toLocaleTimeString();
+          const txCount = b.transactions ? b.transactions.length : 1;
+          const hasUserTx = txCount > 1;
+          const txBadge = hasUserTx 
+            ? `<span style="background: rgba(16, 185, 129, 0.2); color: var(--green); padding: 3px 8px; border-radius: 4px; font-weight: 700; border: 1px solid var(--green-glow);">${txCount} txs (⚡ Transfer)</span>`
+            : `<span style="color: var(--text-muted);">${txCount} tx</span>`;
+
           row.innerHTML = `
             <td style="color: #fff; font-weight: 700;">#${b.height}</td>
             <td class="hash-cell">${b.hash.slice(0, 18)}...</td>
+            <td>${txBadge}</td>
             <td>${miner}</td>
             <td>${b.header.nonce.toLocaleString()}</td>
             <td class="reward-cell">+50.0 DOOM</td>
             <td style="color: var(--text-muted);">${timeStr}</td>
           `;
+
+          // Expandable transaction drawer
+          const detailRow = document.createElement('tr');
+          detailRow.style.display = 'none';
+          detailRow.style.background = 'rgba(255, 255, 255, 0.02)';
+
+          let txHtml = `<div style="padding: 14px 20px; font-size: 13px; line-height: 1.6;">
+            <div style="font-weight: 700; color: var(--accent); margin-bottom: 8px;">Block #${b.height} Payload & Transactions</div>
+            <div style="color: var(--text-muted); margin-bottom: 8px; font-size: 12px;">Merkle Root: <span style="color: #fff;">${b.header.merkle_root}</span></div>`;
+
+          (b.transactions || []).forEach((tx, idx) => {
+            if (tx.is_coinbase) {
+              txHtml += `<div style="padding: 8px 12px; background: rgba(0,0,0,0.4); border-radius: 6px; margin-bottom: 6px; border-left: 3px solid var(--green);">
+                <span style="color: var(--green); font-weight: 600;">[Tx #${idx} Coinbase Subsidy]</span> 50.0 DOOM mined by <span style="color: #fff;">${tx.outputs[0].recipient}</span>
+              </div>`;
+            } else {
+              const amountDoom = tx.outputs[0].amount / 100000000;
+              txHtml += `<div style="padding: 10px 12px; background: rgba(255, 153, 0, 0.12); border-radius: 6px; margin-bottom: 6px; border-left: 3px solid var(--accent);">
+                <div style="color: var(--accent); font-weight: 700;">⚡ [Tx #${idx} Peer Transfer] Sent ${amountDoom.toLocaleString()} DOOM</div>
+                <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">TxID: ${tx.txid}</div>
+                <div style="font-size: 12px; color: #fff; margin-top: 2px;">Recipient: ${tx.outputs[0].recipient}</div>
+              </div>`;
+            }
+          });
+
+          txHtml += `</div>`;
+          detailRow.innerHTML = `<td colspan="7" style="padding: 0;">${txHtml}</td>`;
+
+          row.addEventListener('click', () => {
+            detailRow.style.display = detailRow.style.display === 'none' ? 'table-row' : 'none';
+          });
+
           tbody.appendChild(row);
+          tbody.appendChild(detailRow);
         });
       } catch (e) {
         console.error('Error fetching blocks', e);
       }
+    }
+
+    function inspectWallet(addr) {
+      document.getElementById('wallet-input').value = addr;
+      checkBalance();
     }
 
     function renderMiners(miners) {
