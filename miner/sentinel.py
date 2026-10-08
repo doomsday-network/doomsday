@@ -204,7 +204,7 @@ class IdleSentinelMiner:
                 print(f"\n[Sentinel] Mining Block #{current_job['height']} | Target: {hex(current_job['target_high'])}")
             elif time.time() - last_job_check > 5:
                 fresh_job = self.fetch_job()
-                if fresh_job and fresh_job.get("header_prefix_hex") != current_job.get("header_prefix_hex"):
+                if fresh_job and (fresh_job.get("height") != current_job.get("height") or len(fresh_job.get("transactions", [])) != len(current_job.get("transactions", []))):
                     current_job = fresh_job
                     current_nonce = 0
                     print(f"\n[Sentinel] Job updated (mempool/tip change) | Block #{current_job['height']}")

@@ -161,63 +161,6 @@
       color: #fff;
     }
 
-    /* WORKERS GRID */
-    .workers-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
-      gap: 18px;
-      margin-bottom: 36px;
-    }
-    .worker-card {
-      background: var(--card-bg);
-      border: 1px solid var(--card-border);
-      border-radius: 12px;
-      padding: 20px;
-      transition: border-color 0.2s;
-    }
-    .worker-card.mining {
-      border-color: rgba(255, 51, 68, 0.4);
-      box-shadow: 0 0 15px rgba(255, 51, 68, 0.08);
-    }
-    .worker-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 14px;
-    }
-    .worker-name {
-      font-family: 'JetBrains Mono', monospace;
-      font-weight: 700;
-      font-size: 16px;
-    }
-    .status-badge {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 11px;
-      padding: 4px 10px;
-      border-radius: 6px;
-      font-weight: 600;
-    }
-    .status-mining {
-      background: rgba(255, 51, 68, 0.15);
-      color: var(--primary);
-      border: 1px solid rgba(255, 51, 68, 0.3);
-    }
-    .status-idle {
-      background: rgba(255, 153, 0, 0.15);
-      color: var(--accent);
-      border: 1px solid rgba(255, 153, 0, 0.3);
-    }
-    .worker-stats {
-      display: grid;
-      grid-template-columns: 1fr 1fr 1fr;
-      gap: 10px;
-      margin-top: 14px;
-      padding-top: 14px;
-      border-top: 1px solid rgba(255, 255, 255, 0.06);
-    }
-    .stat-label { font-size: 11px; color: var(--text-muted); }
-    .stat-val { font-family: 'JetBrains Mono', monospace; font-size: 14px; font-weight: 600; }
-
     /* BLOCKS TABLE */
     .table-container {
       background: var(--card-bg);
@@ -336,9 +279,9 @@
         <div class="metric-sub" id="val-tip">Genesis Loaded</div>
       </div>
       <div class="metric-card">
-        <div class="metric-title">Cluster Hashrate</div>
+        <div class="metric-title">Network Hashrate</div>
         <div class="metric-value" id="val-hashrate">0.00 MH/s</div>
-        <div class="metric-sub" id="val-workers">0 Active Rigs</div>
+        <div class="metric-sub" id="val-workers">0 Active Workers</div>
       </div>
       <div class="metric-card">
         <div class="metric-title">Circulating Supply</div>
@@ -349,18 +292,6 @@
         <div class="metric-title">Target Difficulty</div>
         <div class="metric-value" id="val-diff">0x1e0ffff0</div>
         <div class="metric-sub">ASERT Auto-Retarget (20s)</div>
-      </div>
-    </div>
-
-    <!-- WORKERS SECTION -->
-    <div class="section-header">
-      <div class="section-title">🖥️ Connected GPU Rigs</div>
-      <div style="font-size: 12px; color: var(--text-muted);">Real-time Telemetry</div>
-    </div>
-    <div class="workers-grid" id="workers-list">
-      <!-- Injected dynamically -->
-      <div class="worker-card" style="text-align: center; color: var(--text-muted); padding: 40px;">
-        Awaiting idle sentinel connections...
       </div>
     </div>
 
@@ -499,8 +430,11 @@
         if (msg.type === 'init' || msg.type === 'new_block') {
           fetchStatus();
           fetchBlocks();
-        } else if (msg.type === 'miners_update') {
-          renderMiners(msg.data);
+        } else if (msg.type === 'network_stats') {
+          if (msg.data.cluster_hashrate_mhs !== undefined) {
+            document.getElementById('val-hashrate').innerText = `${msg.data.cluster_hashrate_mhs.toLocaleString()} MH/s`;
+            document.getElementById('val-workers').innerText = `${msg.data.active_workers} Active Worker${msg.data.active_workers === 1 ? '' : 's'}`;
+          }
         }
       };
       ws.onclose = () => setTimeout(connectWS, 2000);
@@ -513,7 +447,7 @@
         document.getElementById('val-height').innerText = `#${data.height}`;
         document.getElementById('val-tip').innerText = `${data.tip_hash.slice(0, 16)}...`;
         document.getElementById('val-hashrate').innerText = `${data.cluster_hashrate_mhs.toLocaleString()} MH/s`;
-        document.getElementById('val-workers').innerText = `${data.active_workers} Active Rig${data.active_workers === 1 ? '' : 's'}`;
+        document.getElementById('val-workers').innerText = `${data.active_workers} Active Worker${data.active_workers === 1 ? '' : 's'}`;
         document.getElementById('val-supply').innerText = `${data.total_mined_doom.toLocaleString()} DOOM`;
         document.getElementById('val-diff').innerText = data.difficulty_bits;
       } catch (e) {
@@ -592,43 +526,6 @@
       checkBalance();
     }
 
-    function renderMiners(miners) {
-      const container = document.getElementById('workers-list');
-      if (!miners || miners.length === 0) {
-        container.innerHTML = '<div class="worker-card" style="text-align: center; color: var(--text-muted); padding: 40px;">Awaiting idle sentinel connections...</div>';
-        return;
-      }
-      container.innerHTML = '';
-      miners.forEach(m => {
-        const isMining = m.state === 'MINING';
-        const card = document.createElement('div');
-        card.className = `worker-card ${isMining ? 'mining' : ''}`;
-        card.innerHTML = `
-          <div class="worker-header">
-            <div>
-              <div class="worker-name">${m.name}</div>
-              <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">${m.device}</div>
-            </div>
-            <span class="status-badge ${isMining ? 'status-mining' : 'status-idle'}">${m.state}</span>
-          </div>
-          <div class="worker-stats">
-            <div>
-              <div class="stat-label">SPEED</div>
-              <div class="stat-val" style="color: var(--primary);">${m.hashrate_mhs.toLocaleString()} MH/s</div>
-            </div>
-            <div>
-              <div class="stat-label">TEMP / POWER</div>
-              <div class="stat-val">${m.temp_c}°C / ${m.power_w}W</div>
-            </div>
-            <div>
-              <div class="stat-label">LOAD</div>
-              <div class="stat-val">${m.util_pct}% Util</div>
-            </div>
-          </div>
-        `;
-        container.appendChild(card);
-      });
-    }
 
     async function checkBalance() {
       const addr = document.getElementById('wallet-input').value.trim();

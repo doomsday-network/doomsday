@@ -91,8 +91,9 @@ async def broadcast_event(event_type: str, data: Any):
 @app.get("/status")
 def get_status():
     tip = chain.get_tip()
-    total_supply = sum(get_subsidy(b.height) for b in chain.blocks) / COIN
-    total_mhs = sum(m.get("hashrate_mhs", 0.0) for m in active_miners.values() if time.time() - m.get("last_seen", 0) < 10)
+    now = time.time()
+    active_workers_list = [m for m in active_miners.values() if now - m.get("last_seen", 0) < 15]
+    total_mhs = sum(m.get("hashrate_mhs", 0.0) for m in active_workers_list)
     return {
         "network": "Doomsday Network",
         "ticker": "DOOM",
@@ -102,7 +103,7 @@ def get_status():
         "target": hex(chain.create_block_template("check")["target_high"]),
         "total_mined_doom": (tip.height + 1) * 50.0,
         "max_supply": 21_000_000,
-        "active_workers": len(active_miners),
+        "active_workers": len(active_workers_list),
         "cluster_hashrate_mhs": round(total_mhs, 2),
         "mempool_size": len(chain.mempool)
     }
@@ -157,7 +158,14 @@ async def receive_telemetry(req: MinerTelemetry):
         "address": req.address,
         "last_seen": time.time()
     }
-    await broadcast_event("miners_update", list(active_miners.values()))
+    # OpSec: Broadcast only network-wide aggregate metrics, never individual machine telemetry
+    now = time.time()
+    active_workers_list = [m for m in active_miners.values() if now - m.get("last_seen", 0) < 15]
+    total_mhs = sum(m.get("hashrate_mhs", 0.0) for m in active_workers_list)
+    await broadcast_event("network_stats", {
+        "active_workers": len(active_workers_list),
+        "cluster_hashrate_mhs": round(total_mhs, 2)
+    })
     return {"status": "ok"}
 
 
@@ -301,12 +309,16 @@ async def websocket_endpoint(websocket: WebSocket):
     try:
         # Send initial status
         tip = chain.get_tip()
+        now = time.time()
+        active_workers_list = [m for m in active_miners.values() if now - m.get("last_seen", 0) < 15]
+        total_mhs = sum(m.get("hashrate_mhs", 0.0) for m in active_workers_list)
         await websocket.send_text(json.dumps({
             "type": "init",
             "data": {
                 "tip": tip.to_dict(),
-                "miners": list(active_miners.values()),
-                "total_blocks": len(chain.blocks)
+                "total_blocks": len(chain.blocks),
+                "active_workers": len(active_workers_list),
+                "cluster_hashrate_mhs": round(total_mhs, 2)
             }
         }))
         while True:
