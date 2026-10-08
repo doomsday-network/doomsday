@@ -20,7 +20,7 @@ Welcome to the **Doomsday Network Base Mainnet Launchpad**. This guide details h
 
 ## 🔑 1. Your Dedicated Base Deployer Wallet
 
-A dedicated deployment keypair has been generated and securely saved to [`bridge/.env.base`](file:///c:/Users/Jared/Documents/Projects/mining%20op/bridge/.env.base) *(this file is permanently gitignored to protect your private keys)*:
+A dedicated deployment keypair has been generated and securely saved to [`bridge/.env.base`](../bridge/.env.base) *(this file is permanently gitignored to protect your private keys)*:
 
 ```text
 Public Address:  0x484eD370DEd0D36e36AAD469a2AFE5D69B1A005D
@@ -95,7 +95,7 @@ npm.cmd run launch:mainnet
 4. **Wraps ETH into WETH:** Wraps your allocated ETH (e.g. 0.002 ETH) into canonical Base WETH.
 5. **Initializes Uniswap v3 Pool:** Computes exact `sqrtPriceX96` ratio and initializes the pool via the Uniswap v3 Nonfungible Position Manager.
 6. **Mints Full-Range Liquidity:** Adds perpetual liquidity across ticks `[-887200, 887200]`. Full-range liquidity guarantees that the market can never fall out of range.
-7. **Saves Deployment Info:** Writes contract address, pool address, and transaction hash to [`bridge/build/deployment-mainnet.json`](file:///c:/Users/Jared/Documents/Projects/mining%20op/bridge/build/deployment-mainnet.json).
+7. **Saves Deployment Info:** Writes contract address, pool address, and transaction hash to [`bridge/build/deployment-mainnet.json`](../bridge/build/deployment-mainnet.json).
 
 ---
 

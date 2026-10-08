@@ -77,12 +77,26 @@ document.addEventListener('DOMContentLoaded', async () => {
       };
     }
 
+    // Check if a saved keystore already exists
+    window.doomsdayAPI.getWalletBackup().then((ks) => {
+      const link = document.getElementById('btn-view-keystore-oobe');
+      if (link && ks && ks.address && ks.private_key) {
+        link.style.display = 'inline';
+      }
+    });
+
     document.getElementById('btn-gen-wallet').onclick = async () => {
-      document.getElementById('btn-gen-wallet').innerText = 'Generating...';
+      const btn = document.getElementById('btn-gen-wallet');
+      btn.innerText = 'Generating Keypair...';
       const w = await window.doomsdayAPI.generateWallet();
+      btn.innerText = '⚡ Create New Wallet';
       if (w && w.address) {
         document.getElementById('oobe-wallet-input').value = w.address;
-        document.getElementById('btn-gen-wallet').innerText = '✓ Wallet Created';
+        showBackupModal(w.address, w.private_key);
+        const link = document.getElementById('btn-view-keystore-oobe');
+        if (link) link.style.display = 'inline';
+      } else {
+        alert('Failed to generate wallet. Please verify Python is installed.');
       }
     };
 
@@ -512,6 +526,118 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (e.target === modalQr) modalQr.style.display = 'none';
     });
   }
+
+  // Wallet Backup Modal Logic
+  const modalBackup = document.getElementById('modal-wallet-backup');
+  const backupAddrDisplay = document.getElementById('backup-address-display');
+  const backupKeyDisplay = document.getElementById('backup-key-display');
+  const checkBackupConfirmed = document.getElementById('check-backup-confirmed');
+  const btnConfirmBackup = document.getElementById('btn-confirm-backup');
+  const btnCloseBackupX = document.getElementById('btn-close-backup-x');
+  const btnRevealBackupKey = document.getElementById('btn-reveal-backup-key');
+  const btnCopyBackupAddr = document.getElementById('btn-copy-backup-addr');
+  const btnCopyBackupKey = document.getElementById('btn-copy-backup-key');
+
+  let keyRevealed = false;
+
+  function showBackupModal(address, privateKey) {
+    if (!modalBackup) return;
+    backupAddrDisplay.value = address || '';
+    backupKeyDisplay.value = privateKey || '';
+    backupKeyDisplay.type = 'password';
+    keyRevealed = false;
+    if (btnRevealBackupKey) btnRevealBackupKey.innerText = '👁 Reveal';
+    if (checkBackupConfirmed) checkBackupConfirmed.checked = false;
+    if (btnConfirmBackup) btnConfirmBackup.disabled = true;
+    modalBackup.style.display = 'flex';
+  }
+
+  if (checkBackupConfirmed && btnConfirmBackup) {
+    checkBackupConfirmed.addEventListener('change', () => {
+      btnConfirmBackup.disabled = !checkBackupConfirmed.checked;
+    });
+    btnConfirmBackup.addEventListener('click', () => {
+      modalBackup.style.display = 'none';
+    });
+  }
+
+  if (btnCloseBackupX) {
+    btnCloseBackupX.addEventListener('click', () => {
+      if (checkBackupConfirmed && !checkBackupConfirmed.checked) {
+        if (!confirm('Warning: If you lose your private key, mined DOOM cannot be recovered. Close anyway?')) {
+          return;
+        }
+      }
+      modalBackup.style.display = 'none';
+    });
+  }
+
+  if (btnRevealBackupKey) {
+    btnRevealBackupKey.addEventListener('click', () => {
+      keyRevealed = !keyRevealed;
+      backupKeyDisplay.type = keyRevealed ? 'text' : 'password';
+      btnRevealBackupKey.innerText = keyRevealed ? '🙈 Hide' : '👁 Reveal';
+    });
+  }
+
+  if (btnCopyBackupAddr) {
+    btnCopyBackupAddr.addEventListener('click', () => {
+      navigator.clipboard.writeText(backupAddrDisplay.value);
+      btnCopyBackupAddr.innerText = '✓ Copied';
+      setTimeout(() => { btnCopyBackupAddr.innerText = 'Copy'; }, 2000);
+    });
+  }
+
+  if (btnCopyBackupKey) {
+    btnCopyBackupKey.addEventListener('click', () => {
+      navigator.clipboard.writeText(backupKeyDisplay.value);
+      btnCopyBackupKey.innerText = '✓ Copied';
+      setTimeout(() => { btnCopyBackupKey.innerText = 'Copy'; }, 2000);
+    });
+  }
+
+  async function triggerViewBackup() {
+    const ks = await window.doomsdayAPI.getWalletBackup();
+    if (ks && ks.address && ks.private_key) {
+      showBackupModal(ks.address, ks.private_key);
+    } else {
+      alert("No saved keystore file found on this PC. If you generated your wallet elsewhere or entered it manually, please ensure you maintain your own private key backup.");
+    }
+  }
+
+  const btnViewKeystoreOobe = document.getElementById('btn-view-keystore-oobe');
+  if (btnViewKeystoreOobe) {
+    btnViewKeystoreOobe.addEventListener('click', (e) => {
+      e.preventDefault();
+      triggerViewBackup();
+    });
+  }
+
+  const btnBackupKeyDash = document.getElementById('btn-backup-key-dash');
+  if (btnBackupKeyDash) {
+    btnBackupKeyDash.addEventListener('click', (e) => {
+      e.preventDefault();
+      triggerViewBackup();
+    });
+  }
+
+  // Miner Process Error Banner
+  const bannerMinerError = document.getElementById('banner-miner-error');
+  const textMinerError = document.getElementById('text-miner-error');
+  const btnDismissMinerError = document.getElementById('btn-dismiss-miner-error');
+
+  if (btnDismissMinerError) {
+    btnDismissMinerError.addEventListener('click', () => {
+      if (bannerMinerError) bannerMinerError.style.display = 'none';
+    });
+  }
+
+  window.doomsdayAPI.onMinerError((err) => {
+    if (bannerMinerError && textMinerError) {
+      textMinerError.innerText = err.message || 'Failed to start mining sentinel. Check Python installation.';
+      bannerMinerError.style.display = 'block';
+    }
+  });
 
   // System Tray & Background Synchronization
   window.doomsdayAPI.onConfigUpdated((newCfg) => {

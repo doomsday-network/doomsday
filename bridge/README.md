@@ -11,7 +11,7 @@ This gives miners and users immediate access to:
 
 ## 1. Smart Contract Architecture
 
-The smart contract is located at [`bridge/contracts/WrappedDOOM.sol`](file:///c:/Users/Jared/Documents/Projects/mining%20op/bridge/contracts/WrappedDOOM.sol).
+The smart contract is located at [`contracts/WrappedDOOM.sol`](contracts/WrappedDOOM.sol).
 
 * **Standard:** ERC-20 / ERC-20Burnable
 * **Decimals:** 18 (`1.0 DOOM` = `10^18 wDOOM`)
@@ -24,7 +24,7 @@ The smart contract is located at [`bridge/contracts/WrappedDOOM.sol`](file:///c:
 
 ### Option A: Using Remix IDE (1-Click, No Install)
 1. Open [Remix Ethereum IDE](https://remix.ethereum.org).
-2. Create a new file named `WrappedDOOM.sol` and paste the code from [`bridge/contracts/WrappedDOOM.sol`](file:///c:/Users/Jared/Documents/Projects/mining%20op/bridge/contracts/WrappedDOOM.sol).
+2. Create a new file named `WrappedDOOM.sol` and paste the code from [`contracts/WrappedDOOM.sol`](contracts/WrappedDOOM.sol).
 3. In the **Solidity Compiler** tab, select compiler version `0.8.20`.
 4. In the **Deploy & Run** tab:
    * Environment: Select **Injected Provider - MetaMask** (or Coinbase Wallet).

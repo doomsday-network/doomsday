@@ -41,7 +41,7 @@ This document contains all technical specifications, metadata, RPC configuration
 
 ## 3. CEX Technical RPC Integration (Standard Daemon)
 
-For automated wallet management (deposits, balance queries, withdrawals), Doomsday Network provides a dedicated, Dockerized CEX RPC daemon. Full documentation is maintained in [`docs/EXCHANGE_INTEGRATION.md`](file:///c:/Users/Jared/Documents/Projects/mining%20op/docs/EXCHANGE_INTEGRATION.md).
+For automated wallet management (deposits, balance queries, withdrawals), Doomsday Network provides a dedicated, Dockerized CEX RPC daemon. Full documentation is maintained in [`docs/EXCHANGE_INTEGRATION.md`](EXCHANGE_INTEGRATION.md).
 
 ### 1-Command Docker Deployment for Exchanges
 ```bash

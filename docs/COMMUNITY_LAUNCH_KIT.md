@@ -110,7 +110,7 @@ Would love to hear your feedback on the CUDA engine and idle response times!
 ## 4. Community FAQ (Anticipating Objections)
 
 ### Q1: Is this safe to run on my PC?
-**A:** Yes. Doomsday is 100% open-source Python and CUDA C. Every desktop build is compiled transparently via GitHub Actions CI/CD with publicly published SHA-256 checksums ([`SHA256SUMS.txt`](file:///c:/Users/Jared/Documents/Projects/mining%20op/SHA256SUMS.txt)). There are zero proprietary closed-source blobs.
+**A:** Yes. Doomsday is 100% open-source Python and CUDA C. Every desktop build is compiled transparently via GitHub Actions CI/CD with publicly published SHA-256 checksums ([`SHA256SUMS.txt`](../SHA256SUMS.txt)). There are zero proprietary closed-source blobs.
 
 ### Q2: Will it overheat my graphics card?
 **A:** No. The desktop client reads direct hardware telemetry from NVIDIA NVML. It allows you to set thermal ceiling limits (e.g. 75°C) and automatically throttles batch occupancy if your card gets warm.

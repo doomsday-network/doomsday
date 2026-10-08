@@ -1,7 +1,7 @@
 const { app, BrowserWindow, Tray, Menu, ipcMain, shell, Notification, powerSaveBlocker } = require('electron');
 const path = require('path');
 const fs = require('fs');
-const { spawn, exec } = require('child_process');
+const { spawn, exec, execSync } = require('child_process');
 
 let mainWindow = null;
 let tray = null;
@@ -33,6 +33,7 @@ function updatePowerSave(isMining) {
 
 // Config file path in OS userData
 const configPath = path.join(app.getPath('userData'), 'doomsday-config.json');
+const keystorePath = path.join(app.getPath('userData'), 'doomsday-keystore.json');
 
 function loadConfig() {
   const defaults = {
@@ -396,6 +397,18 @@ function startMinerChildProcess(cfg) {
     console.error('[Miner STDERR]', data.toString());
   });
 
+  minerProcess.on('error', (err) => {
+    console.error('[Desktop] Failed to spawn miner process:', err);
+    minerStatus.state = 'STOPPED';
+    updateTrayMenu();
+    broadcastMinerUpdate();
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('miner-error', {
+        message: `Failed to launch mining sentinel (${err.code || err.message}). Please verify Python 3.10+ is installed and not blocked by Antivirus.`
+      });
+    }
+  });
+
   minerProcess.on('close', (code) => {
     console.log('[Desktop] Miner process exited with code', code);
     minerStatus.state = 'STOPPED';
@@ -525,13 +538,42 @@ ipcMain.handle('generate-wallet', () => {
       encoding: 'utf8'
     });
     const parts = out.trim().split('|');
-    return {
+    const walletData = {
       address: parts[0],
-      private_key: parts[1]
+      private_key: parts[1],
+      created_at: new Date().toISOString()
     };
+    try {
+      fs.writeFileSync(keystorePath, JSON.stringify(walletData, null, 2), 'utf8');
+      console.log('[Keystore] Successfully saved generated keypair to', keystorePath);
+    } catch (saveErr) {
+      console.error('[Keystore] Failed to save keystore file:', saveErr);
+    }
+    return walletData;
   } catch (e) {
     console.error('Wallet generation error:', e);
     return null;
+  }
+});
+
+ipcMain.handle('get-wallet-backup', () => {
+  try {
+    if (fs.existsSync(keystorePath)) {
+      return JSON.parse(fs.readFileSync(keystorePath, 'utf8'));
+    }
+  } catch (e) {
+    console.error('Failed to read keystore backup:', e);
+  }
+  return null;
+});
+
+ipcMain.handle('save-wallet-backup', (_event, walletData) => {
+  try {
+    fs.writeFileSync(keystorePath, JSON.stringify(walletData, null, 2), 'utf8');
+    return true;
+  } catch (e) {
+    console.error('Failed to save keystore backup:', e);
+    return false;
   }
 });
 

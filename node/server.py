@@ -917,7 +917,7 @@ def start_server(host: str = "0.0.0.0", port: int = 8334, peers: Optional[List[s
     if EXCHANGE_API_KEY:
         print(f"Exchange RPC Auth: ENFORCED (Key: {EXCHANGE_API_KEY[:4]}***)")
     else:
-        print(f"Exchange RPC Auth: OPEN (Set DOOMSDAY_EXCHANGE_KEY or --exchange-key to restrict)")
+        print(f"Exchange RPC Auth: DISABLED (Set DOOMSDAY_EXCHANGE_KEY or --exchange-key to enable)")
     print(f"=======================================================\n")
     uvicorn.run(app, host=host, port=port, log_level="warning")
 
