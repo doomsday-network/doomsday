@@ -24,5 +24,23 @@
     "l1_vault_txid": "9ab746a9179873cb106cf7b836e861ca507b6f5318ea02aa42c6c0001fd9a731",
     "basescan_mint_tx": "0xd90ad8c459bea6fd0da3438fbe24517801bcaf595691db7d3831237fdc33446f",
     "verified_onchain": true
+  },
+  {
+    "github_user": "ducanh3005",
+    "device": "Intel Core i5-14400F (CPython 3.10.11 Windows 10 AMD64)",
+    "mode": "CPU (Single-Thread Python Reference)",
+    "hashrate": "51.7 kH/s",
+    "base_evm_address": "0xdF4Ff9D2f45f99f11A90b16F277D4B7EddDB72A5",
+    "l1_vault_txid": "b8b1b5832eb087ad4239948edd4b954c882d3338f2031c2af409401aff4f8eb5",
+    "verified_onchain": true
+  },
+  {
+    "github_user": "ducanh3005",
+    "device": "NVIDIA GeForce RTX 4060 Ti (CUDA PTX DoomHash)",
+    "mode": "GPU (CUDA)",
+    "hashrate": "2,114.1 MH/s",
+    "doom_address": "doom16cf1dcb569605f3fa5437effbab253416c9c98d4f7b72011",
+    "base_evm_address": "0xdF4Ff9D2f45f99f11A90b16F277D4B7EddDB72A5",
+    "verified_onchain": true
   }
 ]
