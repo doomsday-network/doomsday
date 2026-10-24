@@ -18,6 +18,7 @@ Doomsday Proof-of-Escrow natively equips autonomous AI coding agents with crypto
 | **OpenAI Agents SDK** | [`integrations/openai_agents`](openai_agents/) | Python agents, function tools, and handoffs |
 | **OpenAI Function-Calling & Smolagents** | [`integrations/openai-agents`](openai-agents/) | OpenAI Function-Calling, Responses API, Smolagents & MCP Server |
 | **Pydantic AI** | [`integrations/pydantic_ai`](pydantic_ai/) | Typed Python agent tools with standard-library HTTP client |
+| **Google Antigravity** | [`integrations/antigravity`](antigravity/) | Standard-library agent tools & SKILL.md for Google Antigravity & Gemini agents |
 | **Google ADK** | [`integrations/google_adk`](google_adk/) | `FunctionTool` wrappers for Google Agent Development Kit |
 | **Agno** | [`integrations/agno`](agno/) | Typed Python function tools for escrow and miner telemetry checks |
 | **Microsoft Semantic Kernel** | [`integrations/semantic_kernel`](semantic_kernel/) | Kernel plugin with three read-only escrow functions |
